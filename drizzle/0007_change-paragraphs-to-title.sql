@@ -1,0 +1,1 @@
+ALTER TABLE "articles" ALTER COLUMN "paragraphs" SET DATA TYPE text;

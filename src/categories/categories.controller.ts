@@ -1,50 +1,50 @@
 import {
-  Body,
   Controller,
-  Delete,
   Get,
   Param,
-  Patch,
+  Post,
+  Body,
+  Put,
+  Delete,
   UseGuards,
   UseInterceptors,
-  ClassSerializerInterceptor, Post,
+  ClassSerializerInterceptor,
+  ParseIntPipe,
 } from '@nestjs/common';
-import CategoriesService from './categories.service';
-import CreateCategoryDto from './dto/createCategory.dto';
-import UpdateCategoryDto from './dto/updateCategory.dto';
-import JwtAuthenticationGuard from '../authentication/jwt-authentication.guard';
-import FindOneParams from '../utils/findOneParams';
+import { CategoryDto } from './dto/category.dto';
+import { CategoriesService } from './categories.service';
+import { JwtAuthenticationGuard } from '../authentication/jwt-authentication.guard';
 
 @Controller('categories')
 @UseInterceptors(ClassSerializerInterceptor)
-export default class CategoriesController {
-  constructor(
-    private readonly categoriesService: CategoriesService
-  ) {}
+export class CategoriesController {
+  constructor(private readonly categoriesService: CategoriesService) {}
 
   @Get()
-  getAllCategories() {
-    return this.categoriesService.getAllCategories();
+  getAll() {
+    return this.categoriesService.getAll();
   }
 
   @Get(':id')
-  getCategoryById(@Param() { id }: FindOneParams) {
-    return this.categoriesService.getCategoryById(Number(id));
+  getById(@Param('id', ParseIntPipe) id: number) {
+    return this.categoriesService.getById(id);
   }
 
   @Post()
-  @UseGuards(JwtAuthenticationGuard)
-  async createCategory(@Body() category: CreateCategoryDto) {
-    return this.categoriesService.createCategory(category);
+  // @UseGuards(JwtAuthenticationGuard)
+  create(@Body() data: CategoryDto) {
+    return this.categoriesService.create(data);
   }
 
-  @Patch(':id')
-  async updateCategory(@Param() { id }: FindOneParams, @Body() category: UpdateCategoryDto) {
-    return this.categoriesService.updateCategory(Number(id), category);
+  @Put(':id')
+  @UseGuards(JwtAuthenticationGuard)
+  update(@Param('id', ParseIntPipe) id: number, @Body() data: CategoryDto) {
+    return this.categoriesService.update(id, data);
   }
 
   @Delete(':id')
-  async deleteCategory(@Param() { id }: FindOneParams) {
-    return this.categoriesService.deleteCategory(Number(id));
+  @UseGuards(JwtAuthenticationGuard)
+  async delete(@Param('id', ParseIntPipe) id: number) {
+    await this.categoriesService.delete(id);
   }
 }

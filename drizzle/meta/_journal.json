@@ -36,6 +36,34 @@
       "when": 1719129380047,
       "tag": "0004_add-categories-table",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1748008874536,
+      "tag": "0005_rename-article-title-to-topic",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1748009006628,
+      "tag": "0006_add-paragraphs-to-articles",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1748009312988,
+      "tag": "0007_change-paragraphs-to-title",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1748009357484,
+      "tag": "0008_change-paragraphs-to-title",
+      "breakpoints": true
     }
   ]
 }

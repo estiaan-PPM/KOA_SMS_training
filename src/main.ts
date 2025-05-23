@@ -1,36 +1,37 @@
-import { NestFactory } from '@nestjs/core';
-import { AppModule } from './app.module';
-import * as cookieParser from 'cookie-parser';
-import { ValidationPipe } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { config } from 'aws-sdk';
-import rawBodyMiddleware from './utils/rawBody.middleware';
-import CustomLogger from './logger/customLogger';
 
-async function bootstrap() {
-  const app = await NestFactory.create(AppModule, {
-    bufferLogs: true,
-  });
-  app.useLogger(app.get(CustomLogger));
-  app.useGlobalPipes(new ValidationPipe({
-    transform: true
-  }));
-  app.use(cookieParser());
-
-  const configService = app.get(ConfigService);
-  config.update({
-    accessKeyId: configService.get('AWS_ACCESS_KEY_ID'),
-    secretAccessKey: configService.get('AWS_SECRET_ACCESS_KEY'),
-    region: configService.get('AWS_REGION'),
-  });
-
-  app.enableCors({
-    origin: configService.get('FRONTEND_URL'),
-    credentials: true
-  });
-
-  app.use(rawBodyMiddleware());
-
-  await app.listen(3000);
-}
-bootstrap();
+import { Module } from '@nestjs/common';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import * as Joi from 'joi';
+import { ArticlesModule } from './articles/articles.module';
+import { DatabaseModule } from './database/database.module';
+import { EnvironmentVariables } from './utilities/environment-variables';
+ 
+@Module({
+  imports: [
+    ArticlesModule,
+    DatabaseModule.forRootAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (
+        configService: ConfigService<EnvironmentVariables, true>,
+      ) => ({
+        host: configService.get('POSTGRES_HOST'),
+        port: configService.get('POSTGRES_PORT'),
+        user: configService.get('POSTGRES_USER'),
+        password: configService.get('POSTGRES_PASSWORD'),
+        database: configService.get('POSTGRES_DB'),
+      }),
+    }),
+    ConfigModule.forRoot({
+      validationSchema: Joi.object({
+        POSTGRES_HOST: Joi.string().required(),
+        POSTGRES_PORT: Joi.number().required(),
+        POSTGRES_USER: Joi.string().required(),
+        POSTGRES_PASSWORD: Joi.string().required(),
+        POSTGRES_DB: Joi.string().required(),
+        POSTGRES_IS_SSL_ON: Joi.boolean().required(),
+      }),
+    }),
+  ],
+})
+export class AppModule {}

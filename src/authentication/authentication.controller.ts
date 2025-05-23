@@ -1,65 +1,52 @@
 import {
   Body,
-  Req,
   Controller,
+  Get,
   HttpCode,
   Post,
+  Req,
+  Res,
+  Delete,
   UseGuards,
-  Get, ClassSerializerInterceptor, UseInterceptors,
 } from '@nestjs/common';
 import { AuthenticationService } from './authentication.service';
-import RegisterDto from './dto/register.dto';
-import RequestWithUser from './requestWithUser.interface';
-import { LocalAuthenticationGuard } from './localAuthentication.guard';
-import JwtAuthenticationGuard from './jwt-authentication.guard';
+import { SignUpDto } from './dto/sign-up.dto';
+import { LogInDto } from './dto/log-in.dto';
+import { Response } from 'express';
+import { JwtAuthenticationGuard } from './jwt-authentication.guard';
+import { RequestWithUser } from './request-with-user.interface';
 import { UsersService } from '../users/users.service';
-import JwtRefreshGuard from './jwt-refresh.guard';
-import { EmailConfirmationService } from '../emailConfirmation/emailConfirmation.service';
 
 @Controller('authentication')
-@UseInterceptors(ClassSerializerInterceptor)
 export class AuthenticationController {
   constructor(
     private readonly authenticationService: AuthenticationService,
     private readonly usersService: UsersService,
-    private readonly emailConfirmationService: EmailConfirmationService
   ) {}
 
-  @Post('register')
-  async register(@Body() registrationData: RegisterDto) {
-    const user = await this.authenticationService.register(registrationData);
-    await this.emailConfirmationService.sendVerificationLink(registrationData.email);
-    return user;
+  @Post('sign-up')
+  signUp(@Body() signUpData: SignUpDto) {
+    return this.authenticationService.signUp(signUpData);
   }
 
   @HttpCode(200)
-  @UseGuards(LocalAuthenticationGuard)
   @Post('log-in')
-  async logIn(@Req() request: RequestWithUser) {
-    const { user } = request;
-    const accessTokenCookie = this.authenticationService.getCookieWithJwtAccessToken(user.id);
-    const {
-      cookie: refreshTokenCookie,
-      token: refreshToken
-    } = this.authenticationService.getCookieWithJwtRefreshToken(user.id);
-
-    await this.usersService.setCurrentRefreshToken(refreshToken, user.id);
-
-    request.res.setHeader('Set-Cookie', [accessTokenCookie, refreshTokenCookie]);
-
-    if (user.isTwoFactorAuthenticationEnabled) {
-      return;
-    }
-
+  async logIn(
+    @Body() logInData: LogInDto,
+    @Res({ passthrough: true }) response: Response,
+  ) {
+    const user =
+      await this.authenticationService.getAuthenticatedUser(logInData);
+    const cookie = this.authenticationService.getCookieWithJwtToken(user.id);
+    response.setHeader('Set-Cookie', cookie);
     return user;
   }
 
-  @UseGuards(JwtAuthenticationGuard)
-  @Post('log-out')
   @HttpCode(200)
-  async logOut(@Req() request: RequestWithUser) {
-    await this.usersService.removeRefreshToken(request.user.id);
-    request.res.setHeader('Set-Cookie', this.authenticationService.getCookiesForLogOut());
+  @Post('log-out')
+  async logOut(@Res({ passthrough: true }) response: Response) {
+    const cookie = this.authenticationService.getCookieForLogOut();
+    response.setHeader('Set-Cookie', cookie);
   }
 
   @UseGuards(JwtAuthenticationGuard)
@@ -68,12 +55,9 @@ export class AuthenticationController {
     return request.user;
   }
 
-  @UseGuards(JwtRefreshGuard)
-  @Get('refresh')
-  refresh(@Req() request: RequestWithUser) {
-    const accessTokenCookie = this.authenticationService.getCookieWithJwtAccessToken(request.user.id);
-
-    request.res.setHeader('Set-Cookie', accessTokenCookie);
-    return request.user;
+  @UseGuards(JwtAuthenticationGuard)
+  @Delete()
+  async deleteAccount(@Req() request: RequestWithUser) {
+    await this.usersService.deleteWithArticles(request.user.id);
   }
 }
