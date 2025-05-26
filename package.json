@@ -37,6 +37,8 @@
     "dotenv": "^16.4.5",
     "drizzle-kit": "^0.21.2",
     "drizzle-orm": "^0.30.10",
+    "helmet": "^8.1.0",
+    "helmut": "^1.0.1",
     "joi": "^17.13.1",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
