@@ -4,6 +4,8 @@ import JwtAuthenticationGuard from '../authentication/jwt-authentication.guard';
 import RequestWithUser from '../authentication/requestWithUser.interface';
 import { Express } from 'express';
 import LocalFilesInterceptor from '../localFiles/localFiles.interceptor';
+import { ApiBody, ApiConsumes } from '@nestjs/swagger';
+import FileUploadDto from './dto/fileUpload.dto';
 
 @Controller('users')
 export class UsersController {
@@ -26,6 +28,11 @@ export class UsersController {
       fileSize: Math.pow(1024, 2) // 1MB
     }
   }))
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    description: 'A new avatar for the user',
+    type: FileUploadDto,
+  })
   async addAvatar(@Req() request: RequestWithUser, @UploadedFile() file: Express.Multer.File) {
     return this.usersService.addAvatar(request.user.id, {
       path: file.path,

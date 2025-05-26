@@ -3,7 +3,6 @@ import { Exclude } from 'class-transformer';
 import Address from './address.entity';
 import Post from '../posts/post.entity';
 import LocalFile from '../localFiles/localFile.entity';
-import Role from './role.enum';
 
 @Entity()
 class User {
@@ -71,14 +70,6 @@ class User {
 
   @Column({ default: false })
   public isPhoneNumberConfirmed: boolean;
-
-  @Column({
-    type: 'enum',
-    enum: Role,
-    array: true,
-    default: [Role.User]
-  })
-  public roles: Role[]
 }
 
 export default User;

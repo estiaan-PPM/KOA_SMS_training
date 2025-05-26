@@ -1,19 +1,18 @@
 import {
   Body,
-  CacheKey,
-  CacheTTL,
-  ClassSerializerInterceptor,
   Controller,
   Delete,
   Get,
-  Param, ParseIntPipe,
+  Param,
   Patch,
   Post,
-  Query,
-  Req,
   UseGuards,
+  Req,
   UseInterceptors,
+  ClassSerializerInterceptor,
+  Query, CacheKey, CacheTTL,
 } from '@nestjs/common';
+import PostEntity from './post.entity';
 import PostsService from './posts.service';
 import CreatePostDto from './dto/createPost.dto';
 import UpdatePostDto from './dto/updatePost.dto';
@@ -23,11 +22,10 @@ import { PaginationParams } from '../utils/types/paginationParams';
 import { HttpCacheInterceptor } from './httpCache.interceptor';
 import { GET_POSTS_CACHE_KEY } from './postsCacheKey.constant';
 import JwtTwoFactorGuard from '../authentication/jwt-two-factor.guard';
-import RoleGuard from '../users/role.guard';
-import Role from '../users/role.enum';
-import JwtAuthenticationGuard from '../authentication/jwt-authentication.guard';
+import { ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
 
 @Controller('posts')
+@ApiTags('posts')
 @UseInterceptors(ClassSerializerInterceptor)
 export default class PostsController {
   constructor(
@@ -49,7 +47,22 @@ export default class PostsController {
   }
 
   @Get(':id')
-  getPostById(@Param('id', ParseIntPipe) id: number) {
+  @ApiParam({
+    name: 'id',
+    required: true,
+    description: 'Should be an id of a post that exists in the database',
+    type: Number
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'A post has been successfully fetched',
+    type: PostEntity
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'A post with given id does not exist.'
+  })
+  getPostById(@Param() { id }: FindOneParams) {
     return this.postsService.getPostById(Number(id));
   }
 
@@ -60,13 +73,12 @@ export default class PostsController {
   }
 
   @Patch(':id')
-  async updatePost(@Param('id', ParseIntPipe) id: number, @Body() post: UpdatePostDto) {
+  async updatePost(@Param() { id }: FindOneParams, @Body() post: UpdatePostDto) {
     return this.postsService.updatePost(Number(id), post);
   }
 
   @Delete(':id')
-  @UseGuards(RoleGuard(Role.Admin))
-  async deletePost(@Param('id', ParseIntPipe) id: number) {
-    return this.postsService.deletePost(id);
+  async deletePost(@Param() { id }: FindOneParams) {
+    return this.postsService.deletePost(Number(id));
   }
 }

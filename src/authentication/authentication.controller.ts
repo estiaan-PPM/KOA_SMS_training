@@ -15,6 +15,8 @@ import JwtAuthenticationGuard from './jwt-authentication.guard';
 import { UsersService } from '../users/users.service';
 import JwtRefreshGuard from './jwt-refresh.guard';
 import { EmailConfirmationService } from '../emailConfirmation/emailConfirmation.service';
+import { ApiBody } from '@nestjs/swagger';
+import LogInDto from './dto/logIn.dto';
 
 @Controller('authentication')
 @UseInterceptors(ClassSerializerInterceptor)
@@ -35,6 +37,7 @@ export class AuthenticationController {
   @HttpCode(200)
   @UseGuards(LocalAuthenticationGuard)
   @Post('log-in')
+  @ApiBody({ type: LogInDto })
   async logIn(@Req() request: RequestWithUser) {
     const { user } = request;
     const accessTokenCookie = this.authenticationService.getCookieWithJwtAccessToken(user.id);

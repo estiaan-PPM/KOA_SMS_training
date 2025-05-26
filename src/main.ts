@@ -6,6 +6,7 @@ import { ConfigService } from '@nestjs/config';
 import { config } from 'aws-sdk';
 import rawBodyMiddleware from './utils/rawBody.middleware';
 import CustomLogger from './logger/customLogger';
+import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
@@ -31,6 +32,17 @@ async function bootstrap() {
 
   app.use(rawBodyMiddleware());
 
-  await app.listen(3000);
+  const swaggerConfig = new DocumentBuilder()
+    .setTitle('API with NestJS')
+    .setDescription('API developed throughout the API with NestJS course')
+    .setVersion('1.0')
+    .build();
+
+  const document = SwaggerModule.createDocument(app, swaggerConfig);
+  SwaggerModule.setup('api', app, document);
+
+  const port = configService.get('PORT') ?? 3000;
+
+  await app.listen(port);
 }
 bootstrap();
