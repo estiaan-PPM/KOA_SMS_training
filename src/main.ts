@@ -1,36 +1,28 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
-import * as cookieParser from 'cookie-parser';
-import { ValidationPipe } from '@nestjs/common';
+import { MicroserviceOptions, Transport } from '@nestjs/microservices';
 import { ConfigService } from '@nestjs/config';
-import { config } from 'aws-sdk';
-import rawBodyMiddleware from './utils/rawBody.middleware';
-import CustomLogger from './logger/customLogger';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule, {
-    bufferLogs: true,
-  });
-  app.useLogger(app.get(CustomLogger));
-  app.useGlobalPipes(new ValidationPipe({
-    transform: true
-  }));
-  app.use(cookieParser());
-
+  const app = await NestFactory.create(AppModule);
   const configService = app.get(ConfigService);
-  config.update({
-    accessKeyId: configService.get('AWS_ACCESS_KEY_ID'),
-    secretAccessKey: configService.get('AWS_SECRET_ACCESS_KEY'),
-    region: configService.get('AWS_REGION'),
+
+  const user = configService.get('RABBITMQ_USER');
+  const password = configService.get('RABBITMQ_PASSWORD');
+  const host = configService.get('RABBITMQ_HOST');
+  const queueName = configService.get('RABBITMQ_QUEUE_NAME');
+
+  await app.connectMicroservice<MicroserviceOptions>({
+    transport: Transport.RMQ,
+    options: {
+      urls: [`amqp://${user}:${password}@${host}`],
+      queue: queueName,
+      queueOptions: {
+        durable: true,
+      },
+    },
   });
 
-  app.enableCors({
-    origin: configService.get('FRONTEND_URL'),
-    credentials: true
-  });
-
-  app.use(rawBodyMiddleware());
-
-  await app.listen(3000);
+  app.startAllMicroservices();
 }
 bootstrap();

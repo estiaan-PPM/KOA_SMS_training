@@ -1,1 +1,0 @@
-export const GET_POSTS_CACHE_KEY = 'GET_POSTS_CACHE';

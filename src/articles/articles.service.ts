@@ -5,18 +5,47 @@ import {
 } from '@nestjs/common';
 import { DrizzleService } from '../database/drizzle.service';
 import { databaseSchema } from '../database/database-schema';
-import { eq } from 'drizzle-orm';
+import { asc, count, eq, gt } from 'drizzle-orm';
 import { CreateArticleDto } from './dto/create-article.dto';
 import { UpdateArticleDto } from './dto/update-article.dto';
 import { isDatabaseError } from '../database/databse-error';
 import { PostgresErrorCode } from '../database/postgres-error-code.enum';
+import { PaginationParamsDto } from '../utilities/pagination-params.dto';
 
 @Injectable()
 export class ArticlesService {
   constructor(private readonly drizzleService: DrizzleService) {}
 
-  getAll() {
-    return this.drizzleService.db.select().from(databaseSchema.articles);
+  getAll({ offset, limit, idsToSkip }: PaginationParamsDto) {
+    return this.drizzleService.db.transaction(async (transaction) => {
+      const articlesCountResponses = await transaction
+        .select({ articlesCount: count() })
+        .from(databaseSchema.articles);
+
+      const { articlesCount } = articlesCountResponses[0];
+
+      const dataQuery = transaction
+        .select()
+        .from(databaseSchema.articles)
+        .orderBy(asc(databaseSchema.articles.id))
+        .offset(offset)
+        .where(gt(databaseSchema.articles.id, idsToSkip));
+
+      if (limit) {
+        const data = await dataQuery.limit(limit);
+        return {
+          data,
+          count: articlesCount,
+        };
+      }
+
+      const data = await dataQuery;
+
+      return {
+        data,
+        count: articlesCount,
+      };
+    });
   }
 
   async getById(articleId: number) {
@@ -95,7 +124,7 @@ export class ArticlesService {
         })
         .returning();
 
-      const createdArticle = createdArticles.pop();
+      const createdArticle = createdArticles[0];
 
       await transaction.insert(databaseSchema.categoriesArticles).values(
         article.categoryIds.map((categoryId) => ({

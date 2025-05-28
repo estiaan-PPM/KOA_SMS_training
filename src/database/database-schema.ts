@@ -4,24 +4,15 @@ import {
   integer,
   pgTable,
   primaryKey,
+  AnyPgColumn,
 } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
-
-export const addresses = pgTable('addresses', {
-  id: serial('id').primaryKey(),
-  street: text('street').notNull(),
-  city: text('city').notNull(),
-  country: text('country').notNull(),
-});
 
 export const users = pgTable('users', {
   id: serial('id').primaryKey(),
   email: text('email').unique().notNull(),
   name: text('name').notNull(),
   password: text('password').notNull(),
-  addressId: integer('address_id')
-    .unique()
-    .references(() => addresses.id),
 });
 
 export const articles = pgTable('articles', {
@@ -36,6 +27,9 @@ export const articles = pgTable('articles', {
 export const categories = pgTable('categories', {
   id: serial('id').primaryKey(),
   name: text('title').notNull(),
+  parentCategoryId: integer('parent_category_id').references(
+    (): AnyPgColumn => categories.id,
+  ),
 });
 
 export const categoriesArticles = pgTable(
@@ -53,13 +47,6 @@ export const categoriesArticles = pgTable(
   }),
 );
 
-export const usersAddressesRelation = relations(users, ({ one }) => ({
-  address: one(addresses, {
-    fields: [users.addressId],
-    references: [addresses.id],
-  }),
-}));
-
 export const articlesRelations = relations(articles, ({ one, many }) => ({
   author: one(users, {
     fields: [articles.authorId],
@@ -68,8 +55,16 @@ export const articlesRelations = relations(articles, ({ one, many }) => ({
   categoriesArticles: many(categoriesArticles),
 }));
 
-export const categoriesRelations = relations(categories, ({ many }) => ({
+export const categoriesRelations = relations(categories, ({ one, many }) => ({
   categoriesArticles: many(categoriesArticles),
+  parentCategory: one(categories, {
+    fields: [categories.parentCategoryId],
+    references: [categories.id],
+    relationName: 'nested_categories',
+  }),
+  nestedCategories: many(categories, {
+    relationName: 'nested_categories',
+  }),
 }));
 
 export const categoriesArticlesRelations = relations(
@@ -88,9 +83,7 @@ export const categoriesArticlesRelations = relations(
 
 export const databaseSchema = {
   articles,
-  addresses,
   users,
-  usersAddressesRelation,
   articlesRelations,
   categories,
   categoriesArticles,

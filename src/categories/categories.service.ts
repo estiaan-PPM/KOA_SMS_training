@@ -1,90 +1,80 @@
-import { Injectable } from '@nestjs/common';
-import CreateCategoryDto from './dto/createCategory.dto';
-import Category from './category.entity';
-import UpdateCategoryDto from './dto/updateCategory.dto';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import CategoryNotFoundException from './exceptions/categoryNotFound.exception';
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { CategoryDto } from './dto/category.dto';
+import { DrizzleService } from '../database/drizzle.service';
+import { databaseSchema } from '../database/database-schema';
+import { eq } from 'drizzle-orm';
 
 @Injectable()
-export default class CategoriesService {
+export class CategoriesService {
+  constructor(private readonly drizzleService: DrizzleService) {}
 
-  /**
-   * @ignore
-   */
-  constructor(
-    @InjectRepository(Category)
-    private categoriesRepository: Repository<Category>
-  ) {}
-
-  /**
-   * A method that fetches the categories from the database
-   * @returns A promise with the list of categories
-   */
-  getAllCategories(): Promise<Category[]> {
-    return this.categoriesRepository.find({ relations: ['posts'] });
+  getAll() {
+    return this.drizzleService.db.select().from(databaseSchema.categories);
   }
 
-  /**
-   * A method that fetches a category with a given id. Example:
-   *
-   * @example
-   * const category = await categoriesService.getCategoryById(1);
-   */
-  async getCategoryById(id: number): Promise<Category> {
-    const category = await this.categoriesRepository.findOne(
-      id,
-      {
-        relations: ['posts'],
-        withDeleted: true
-      }
-    );
-    if (category) {
-      return category;
+  async getById(categoryId: number) {
+    const category = await this.drizzleService.db.query.categories.findFirst({
+      with: {
+        categoriesArticles: {
+          with: {
+            article: true,
+          },
+        },
+        parentCategory: true,
+        nestedCategories: true,
+      },
+      where: eq(databaseSchema.categories.id, categoryId),
+    });
+
+    if (!category) {
+      throw new NotFoundException();
     }
-    throw new CategoryNotFoundException(id);
+
+    const articles = category.categoriesArticles.map(({ article }) => article);
+
+    return {
+      id: category.id,
+      name: category.name,
+      parentCategory: category.parentCategory,
+      nestedCategories: category.nestedCategories,
+      articles,
+    };
   }
 
-  async restoreDeletedCategory(id: number) {
-    const restoreResponse = await this.categoriesRepository.restore(id);
-    if (!restoreResponse.affected) {
-      throw new CategoryNotFoundException(id);
+  async create(data: CategoryDto) {
+    const createdCategories = await this.drizzleService.db
+      .insert(databaseSchema.categories)
+      .values({
+        name: data.name,
+        parentCategoryId: data.parentCategoryId,
+      })
+      .returning();
+
+    return createdCategories.pop();
+  }
+
+  async update(id: number, data: CategoryDto) {
+    const updatedCategories = await this.drizzleService.db
+      .update(databaseSchema.categories)
+      .set(data)
+      .where(eq(databaseSchema.categories.id, id))
+      .returning();
+
+    if (updatedCategories.length === 0) {
+      throw new NotFoundException();
     }
+
+    return updatedCategories.pop();
   }
 
-  async createCategory(category: CreateCategoryDto) {
-    const newCategory = await this.categoriesRepository.create(category);
-    await this.categoriesRepository.save(newCategory);
-    return newCategory;
-  }
+  async delete(id: number) {
+    const deletedCategories = await this.drizzleService.db
+      .delete(databaseSchema.categories)
+      .where(eq(databaseSchema.categories.id, id))
+      .returning();
 
-  /**
-   * See the [definition of the UpdateCategoryDto file]{@link UpdateCategoryDto} to see a list of required properties
-   */
-  async updateCategory(id: number, category: UpdateCategoryDto): Promise<Category> {
-    await this.categoriesRepository.update(id, category);
-    const updatedCategory = await this.categoriesRepository.findOne(id, { relations: ['posts'] });
-    if (updatedCategory) {
-      return updatedCategory
-    }
-    throw new CategoryNotFoundException(id);
-  }
-
-  /**
-   * @deprecated Use deleteCategory instead
-   */
-  async deleteCategoryById(id: number): Promise<void> {
-    return this.deleteCategory(id);
-  }
-
-  /**
-   * A method that deletes a category from the database
-   * @param id An id of a category. A category with this id should exist in the database
-   */
-  async deleteCategory(id: number): Promise<void> {
-    const deleteResponse = await this.categoriesRepository.softDelete(id);
-    if (!deleteResponse.affected) {
-      throw new CategoryNotFoundException(id);
+    if (deletedCategories.length === 0) {
+      throw new NotFoundException();
     }
   }
 }

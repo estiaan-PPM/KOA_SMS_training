@@ -1,28 +1,27 @@
 import { Module } from '@nestjs/common';
+import { AuthenticationController } from './authentication.controller';
 import { AuthenticationService } from './authentication.service';
 import { UsersModule } from '../users/users.module';
-import { AuthenticationController } from './authentication.controller';
-import { PassportModule } from '@nestjs/passport';
-import { LocalStrategy } from './local.strategy';
 import { JwtModule } from '@nestjs/jwt';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtStrategy } from './jwt.strategy';
-import { JwtRefreshTokenStrategy } from './jwt-refresh-token.strategy';
-import { TwoFactorAuthenticationController } from './twoFactor/twoFactorAuthentication.controller';
-import { TwoFactorAuthenticationService } from './twoFactor/twoFactorAuthentication.service';
-import { JwtTwoFactorStrategy } from './jwt-two-factor.strategy';
-import { EmailConfirmationModule } from '../emailConfirmation/emailConfirmation.module';
 
 @Module({
   imports: [
     UsersModule,
-    PassportModule,
     ConfigModule,
-    JwtModule.register({}),
-    EmailConfirmationModule
+    JwtModule.registerAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: async (configService: ConfigService) => ({
+        secret: configService.get('JWT_SECRET'),
+        signOptions: {
+          expiresIn: configService.get('JWT_EXPIRATION_TIME'),
+        },
+      }),
+    }),
   ],
-  providers: [AuthenticationService, LocalStrategy, JwtStrategy, JwtRefreshTokenStrategy, TwoFactorAuthenticationService, JwtTwoFactorStrategy],
-  controllers: [AuthenticationController, TwoFactorAuthenticationController],
-  exports: [AuthenticationService]
+  controllers: [AuthenticationController],
+  providers: [AuthenticationController, AuthenticationService, JwtStrategy],
 })
 export class AuthenticationModule {}
