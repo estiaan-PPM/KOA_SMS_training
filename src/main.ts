@@ -1,36 +1,56 @@
 import { NestFactory } from '@nestjs/core';
-import { AppModule } from './app.module';
-import * as cookieParser from 'cookie-parser';
-import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { config } from 'aws-sdk';
-import rawBodyMiddleware from './utils/rawBody.middleware';
-import CustomLogger from './logger/customLogger';
+import { ValidationPipe } from '@nestjs/common';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import helmet from 'helmet';
+import * as cookieParser from 'cookie-parser';
+
+import { AppModule } from './app.module';
+import { ExceptionsLoggerFilter } from './common/filters/exceptions-logger.filter';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule, {
-    bufferLogs: true,
-  });
-  app.useLogger(app.get(CustomLogger));
-  app.useGlobalPipes(new ValidationPipe({
-    transform: true
-  }));
+  const app = await NestFactory.create(AppModule);
+  const configService = app.get(ConfigService);
+
+  // Security middleware
+  app.use(helmet());
   app.use(cookieParser());
 
-  const configService = app.get(ConfigService);
-  config.update({
-    accessKeyId: configService.get('AWS_ACCESS_KEY_ID'),
-    secretAccessKey: configService.get('AWS_SECRET_ACCESS_KEY'),
-    region: configService.get('AWS_REGION'),
-  });
-
+  // Enable CORS
   app.enableCors({
-    origin: configService.get('FRONTEND_URL'),
-    credentials: true
+    origin: true, // Configure appropriately for production
+    credentials: true,
   });
 
-  app.use(rawBodyMiddleware());
+  // Global validation pipe
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      transform: true,
+    }),
+  );
 
-  await app.listen(3000);
+  // Global exception filter
+  app.useGlobalFilters(new ExceptionsLoggerFilter());
+
+  // Swagger setup
+  const swaggerConfig = new DocumentBuilder()
+    .setTitle('NestJS Starter API')
+    .setDescription('A comprehensive NestJS starter API with authentication and best practices')
+    .setVersion('1.0')
+    .addBearerAuth()
+    .addCookieAuth('Authentication')
+    .build();
+
+  const document = SwaggerModule.createDocument(app, swaggerConfig);
+  SwaggerModule.setup('api/docs', app, document);
+
+  // Start server
+  const port = configService.get('PORT', 3000);
+  await app.listen(port);
+  
+  console.log(`🚀 Application is running on: http://localhost:${port}`);
+  console.log(`📚 API Documentation: http://localhost:${port}/api/docs`);
 }
 bootstrap();

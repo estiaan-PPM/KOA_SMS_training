@@ -1,133 +1,121 @@
-import { HttpException, HttpStatus, Injectable, InternalServerErrorException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Connection, In } from 'typeorm';
-import User from './user.entity';
-import CreateUserDto from './dto/createUser.dto';
+import { Injectable, HttpException, HttpStatus } from '@nestjs/common';
+import { eq } from 'drizzle-orm';
 import * as bcrypt from 'bcrypt';
-import StripeService from '../stripe/stripe.service';
-import DatabaseFilesService from '../databaseFiles/databaseFiles.services';
-import LocalFilesService from '../localFiles/localFiles.service';
+
+import { DrizzleService } from '../database/drizzle.service';
+import { users } from '../database/schema';
+import { CreateUserDto } from './dto/create-user.dto';
+import { User } from './types/user.type';
 
 @Injectable()
 export class UsersService {
-  constructor(
-    @InjectRepository(User)
-    private usersRepository: Repository<User>,
-    private readonly databaseFilesService: DatabaseFilesService,
-    private connection: Connection,
-    private stripeService: StripeService,
-    private localFilesService: LocalFilesService
-  ) {}
+  constructor(private readonly drizzleService: DrizzleService) {}
 
-  async updateMonthlySubscriptionStatus(
-    stripeCustomerId: string, monthlySubscriptionStatus: string
-  ) {
-    return this.usersRepository.update(
-      { stripeCustomerId },
-      { monthlySubscriptionStatus }
-    );
-  }
+  async create(userData: CreateUserDto): Promise<User> {
+    const result = await this.drizzleService.db
+      .insert(users)
+      .values(userData)
+      .returning();
 
-  async getByEmail(email: string) {
-    const user = await this.usersRepository.findOne({ email });
-    if (user) {
-      return user;
+    const user = result[0];
+    if (!user) {
+      throw new HttpException(
+        'Failed to create user',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
     }
-    throw new HttpException('User with this email does not exist', HttpStatus.NOT_FOUND);
+
+    // Remove password from response
+    const { password, ...userWithoutPassword } = user;
+    return userWithoutPassword as User;
   }
 
-  async getByIds(ids: number[]) {
-    return this.usersRepository.find({
-      where: { id: In(ids) },
-    });
-  }
+  async getByEmail(email: string): Promise<User> {
+    const result = await this.drizzleService.db
+      .select()
+      .from(users)
+      .where(eq(users.email, email));
 
-  async getById(id: number) {
-    const user = await this.usersRepository.findOne({ id });
-    if (user) {
-      return user;
+    const user = result[0];
+    if (!user) {
+      throw new HttpException(
+        'User with this email does not exist',
+        HttpStatus.NOT_FOUND,
+      );
     }
-    throw new HttpException('User with this id does not exist', HttpStatus.NOT_FOUND);
+
+    // Return user with password for authentication
+    return user as User;
   }
 
-  async create(userData: CreateUserDto) {
-    const stripeCustomer = await this.stripeService.createCustomer(userData.name, userData.email);
+  async getById(id: number): Promise<User> {
+    const result = await this.drizzleService.db
+      .select()
+      .from(users)
+      .where(eq(users.id, id));
 
-    const newUser = await this.usersRepository.create({
-      ...userData,
-      stripeCustomerId: stripeCustomer.id
-    });
-    await this.usersRepository.save(newUser);
-    return newUser;
-  }
+    const user = result[0];
+    if (!user) {
+      throw new HttpException(
+        'User with this id does not exist',
+        HttpStatus.NOT_FOUND,
+      );
+    }
 
-  async createWithGoogle(email: string, name: string) {
-    const stripeCustomer = await this.stripeService.createCustomer(name, email);
-
-    const newUser = await this.usersRepository.create({
-      email,
-      name,
-      isRegisteredWithGoogle: true,
-      stripeCustomerId: stripeCustomer.id
-    });
-    await this.usersRepository.save(newUser);
-    return newUser;
-  }
-
-  async addAvatar(userId: number, fileData: LocalFileDto) {
-    const avatar = await this.localFilesService.saveLocalFileData(fileData);
-    await this.usersRepository.update(userId, {
-      avatarId: avatar.id
-    })
+    // Remove password from response
+    const { password, currentHashedRefreshToken, ...userWithoutSensitiveData } = user;
+    return userWithoutSensitiveData as User;
   }
 
   async setCurrentRefreshToken(refreshToken: string, userId: number) {
     const currentHashedRefreshToken = await bcrypt.hash(refreshToken, 10);
-    await this.usersRepository.update(userId, {
-      currentHashedRefreshToken
-    });
+    await this.drizzleService.db
+      .update(users)
+      .set({ currentHashedRefreshToken })
+      .where(eq(users.id, userId));
   }
 
   async getUserIfRefreshTokenMatches(refreshToken: string, userId: number) {
-    const user = await this.getById(userId);
+    const user = await this.getByIdWithSensitiveData(userId);
+
+    if (!user.currentHashedRefreshToken) {
+      return null;
+    }
 
     const isRefreshTokenMatching = await bcrypt.compare(
       refreshToken,
-      user.currentHashedRefreshToken
+      user.currentHashedRefreshToken,
     );
 
     if (isRefreshTokenMatching) {
-      return user;
+      const { password, currentHashedRefreshToken, ...userWithoutSensitiveData } = user;
+      return userWithoutSensitiveData as User;
     }
-  }
 
-  async markEmailAsConfirmed(email: string) {
-    return this.usersRepository.update({ email }, {
-      isEmailConfirmed: true
-    });
-  }
-
-  markPhoneNumberAsConfirmed(userId: number) {
-    return this.usersRepository.update({ id: userId }, {
-      isPhoneNumberConfirmed: true
-    });
+    return null;
   }
 
   async removeRefreshToken(userId: number) {
-    return this.usersRepository.update(userId, {
-      currentHashedRefreshToken: null
-    });
+    return this.drizzleService.db
+      .update(users)
+      .set({ currentHashedRefreshToken: null })
+      .where(eq(users.id, userId));
   }
 
-  async setTwoFactorAuthenticationSecret(secret: string, userId: number) {
-    return this.usersRepository.update(userId, {
-      twoFactorAuthenticationSecret: secret
-    });
-  }
+  private async getByIdWithSensitiveData(id: number) {
+    const result = await this.drizzleService.db
+      .select()
+      .from(users)
+      .where(eq(users.id, id));
 
-  async turnOnTwoFactorAuthentication(userId: number) {
-    return this.usersRepository.update(userId, {
-      isTwoFactorAuthenticationEnabled: true
-    });
+    const user = result[0];
+    if (!user) {
+      throw new HttpException(
+        'User with this id does not exist',
+        HttpStatus.NOT_FOUND,
+      );
+    }
+
+    return user;
   }
 }

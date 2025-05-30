@@ -1,40 +1,29 @@
 import { Controller, Get } from '@nestjs/common';
-import {
-  HealthCheckService,
-  HealthCheck,
-  TypeOrmHealthIndicator,
-  MemoryHealthIndicator,
-  DiskHealthIndicator,
-} from '@nestjs/terminus';
-import { ElasticsearchHealthIndicator } from './elasticsearchHealthIndicator';
+import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 
+import { HealthService } from './health.service';
 
+@ApiTags('Health')
 @Controller('health')
-class HealthController {
-  constructor(
-    private healthCheckService: HealthCheckService,
-    private typeOrmHealthIndicator: TypeOrmHealthIndicator,
-    private memoryHealthIndicator: MemoryHealthIndicator,
-    private diskHealthIndicator: DiskHealthIndicator,
-    private elasticsearchHealthIndicator: ElasticsearchHealthIndicator
-  ) {}
+export class HealthController {
+  constructor(private readonly healthService: HealthService) {}
 
   @Get()
-  @HealthCheck()
+  @ApiOperation({ summary: 'Health check endpoint' })
+  @ApiResponse({
+    status: 200,
+    description: 'Health check successful',
+    schema: {
+      type: 'object',
+      properties: {
+        status: { type: 'string' },
+        timestamp: { type: 'string' },
+        uptime: { type: 'number' },
+        database: { type: 'string' },
+      },
+    },
+  })
   check() {
-    return this.healthCheckService.check([
-      () => this.typeOrmHealthIndicator.pingCheck('database'),
-      // the process should not use more than 300MB memory
-      () => this.memoryHealthIndicator.checkHeap('memory heap', 300 * 1024 * 1024),
-      // The process should not have more than 300MB RSS memory allocated
-      () => this.memoryHealthIndicator.checkRSS('memory RSS', 300 * 1024 * 1024),
-      // the used disk storage should not exceed the 50% of the available space
-      () => this.diskHealthIndicator.checkStorage('disk health', {
-        thresholdPercent: 0.5, path: '/'
-      }),
-      () => this.elasticsearchHealthIndicator.isHealthy('elasticsearch')
-    ]);
+    return this.healthService.check();
   }
 }
-
-export default HealthController;

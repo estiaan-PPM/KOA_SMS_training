@@ -1,73 +1,225 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="200" alt="Nest Logo" /></a>
-</p>
+# NestJS Starter
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+A comprehensive NestJS starter repository with authentication, database integration using Drizzle ORM, validation, error handling, and other best practices.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://coveralls.io/github/nestjs/nest?branch=master" target="_blank"><img src="https://coveralls.io/repos/github/nestjs/nest/badge.svg?branch=master#9" alt="Coverage" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+## Features
 
-## Description
+- 🚀 **NestJS Framework** - A progressive Node.js framework
+- 🔐 **Authentication & Authorization** - JWT-based auth with refresh tokens
+- 🗄️ **Database Integration** - PostgreSQL with Drizzle ORM
+- 📝 **API Documentation** - Swagger/OpenAPI integration
+- ✅ **Validation** - Input validation with class-validator
+- 🔒 **Security** - Helmet for security headers, rate limiting
+- 🐳 **Docker Support** - Docker Compose for development
+- 📊 **Health Checks** - Database and application health monitoring
+- 🧪 **Testing Setup** - Jest configuration for unit and integration tests
+- 📚 **Code Quality** - ESLint, Prettier, and TypeScript strict mode
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+## Quick Start
 
-## Installation
+### Prerequisites
 
+- Node.js (v18 or higher)
+- Docker and Docker Compose
+- npm or yarn
+
+### Installation
+
+1. **Clone the repository**
 ```bash
-$ npm install
+git clone <repository-url>
+cd nestjs-starter
 ```
 
-## Running the app
-
+2. **Install dependencies**
 ```bash
-# development
-$ npm run start
-
-# watch mode
-$ npm run start:dev
-
-# production mode
-$ npm run start:prod
+npm install
 ```
 
-## Test
-
+3. **Environment setup**
 ```bash
-# unit tests
-$ npm run test
-
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
+cp .env.example .env
+# Edit .env with your configuration
 ```
 
-## Support
+4. **Start the database**
+```bash
+docker-compose up -d postgres
+```
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+5. **Run database migrations**
+```bash
+npm run db:generate
+npm run db:migrate
+```
 
-## Stay in touch
+6. **Start the application**
+```bash
+# Development
+npm run start:dev
 
-- Author - [Kamil Myśliwiec](https://kamilmysliwiec.com)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+# Production
+npm run build
+npm run start:prod
+```
+
+## API Documentation
+
+Once the application is running, you can access the API documentation at:
+- Swagger UI: http://localhost:3000/api/docs
+
+## Database Management
+
+### Drizzle Commands
+
+```bash
+# Generate migrations
+npm run db:generate
+
+# Run migrations
+npm run db:migrate
+
+# Open Drizzle Studio
+npm run db:studio
+```
+
+### Database Access
+
+- **PostgreSQL**: localhost:5432
+- **pgAdmin**: http://localhost:5050
+  - Email: admin@admin.com
+  - Password: admin
+
+## Project Structure
+
+```
+src/
+├── auth/                 # Authentication module
+│   ├── dto/             # Data transfer objects
+│   ├── guards/          # Auth guards
+│   ├── interfaces/      # TypeScript interfaces
+│   └── strategies/      # Passport strategies
+├── common/              # Shared utilities
+│   ├── filters/         # Exception filters
+│   └── utils/           # Utility functions
+├── database/            # Database configuration
+│   ├── schema.ts        # Drizzle schema definitions
+│   └── *.ts            # Database-related files
+├── health/              # Health check module
+├── posts/               # Posts feature module
+├── users/               # Users module
+└── main.ts             # Application entry point
+```
+
+## Available Scripts
+
+```bash
+# Development
+npm run start:dev        # Start in watch mode
+npm run start:debug      # Start in debug mode
+
+# Building
+npm run build           # Build the application
+npm run start:prod      # Start production build
+
+# Testing
+npm run test            # Run unit tests
+npm run test:watch      # Run tests in watch mode
+npm run test:cov        # Run tests with coverage
+npm run test:e2e        # Run end-to-end tests
+
+# Code Quality
+npm run lint            # Run ESLint
+npm run format          # Format code with Prettier
+
+# Database
+npm run db:generate     # Generate database migrations
+npm run db:migrate      # Run database migrations
+npm run db:studio       # Open Drizzle Studio
+```
+
+## Authentication
+
+The starter includes a complete authentication system:
+
+- **Registration**: POST `/auth/register`
+- **Login**: POST `/auth/login`
+- **Logout**: POST `/auth/logout`
+- **Profile**: GET `/auth/me`
+- **Refresh Token**: GET `/auth/refresh`
+
+### Usage Example
+
+```bash
+# Register a new user
+curl -X POST http://localhost:3000/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"email": "user@example.com", "name": "John Doe", "password": "password123"}'
+
+# Login
+curl -X POST http://localhost:3000/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email": "user@example.com", "password": "password123"}'
+```
+
+## Testing
+
+```bash
+# Run all tests
+npm test
+
+# Run tests in watch mode
+npm run test:watch
+
+# Run tests with coverage
+npm run test:cov
+
+# Run e2e tests
+npm run test:e2e
+```
+
+## Security Features
+
+- **Helmet**: Security headers
+- **Rate Limiting**: Configurable request throttling
+- **JWT Authentication**: Secure token-based auth
+- **Input Validation**: Automatic request validation
+- **Error Handling**: Comprehensive error management
+
+## Environment Variables
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `PORT` | Server port | `3000` |
+| `NODE_ENV` | Environment | `development` |
+| `POSTGRES_HOST` | Database host | `localhost` |
+| `POSTGRES_PORT` | Database port | `5432` |
+| `POSTGRES_USER` | Database user | `postgres` |
+| `POSTGRES_PASSWORD` | Database password | `password` |
+| `POSTGRES_DB` | Database name | `nestjs_db` |
+| `JWT_ACCESS_TOKEN_SECRET` | JWT access token secret | - |
+| `JWT_ACCESS_TOKEN_EXPIRATION_TIME` | Access token expiry (seconds) | `900` |
+| `JWT_REFRESH_TOKEN_SECRET` | JWT refresh token secret | - |
+| `JWT_REFRESH_TOKEN_EXPIRATION_TIME` | Refresh token expiry (seconds) | `604800` |
+
+## Contributing
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
 ## License
 
-Nest is [MIT licensed](LICENSE).
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## Acknowledgments
+
+Based on the comprehensive NestJS course materials covering:
+- Authentication and authorization
+- Database integration with Drizzle ORM
+- API documentation with Swagger
+- Security best practices
+- Testing strategies
+- Error handling and validation
