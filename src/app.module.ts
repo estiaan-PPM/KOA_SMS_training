@@ -70,7 +70,18 @@ import { LoggingInterceptor } from './audit/interceptors/logging.interceptor';
     }),
 
     // Core modules
-    DatabaseModule,
+    DatabaseModule.forRootAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService) => ({
+        host: configService.get('POSTGRES_HOST'),
+        port: configService.get('POSTGRES_PORT'),
+        user: configService.get('POSTGRES_USER'),
+        password: configService.get('POSTGRES_PASSWORD'),
+        database: configService.get('POSTGRES_DB'),
+        ssl: configService.get('POSTGRES_SSL') === 'true',
+      }),
+    }),
     AuthModule,
     AuditModule,
 
