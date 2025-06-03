@@ -1,225 +1,137 @@
-# NestJS Starter
 
-A comprehensive NestJS starter repository with authentication, database integration using Drizzle ORM, validation, error handling, and other best practices.
+// README.md
+# Koa Academy Student Management System
+
+A comprehensive multi-tenant student management system built with NestJS, PostgreSQL, and Drizzle ORM.
 
 ## Features
 
-- 🚀 **NestJS Framework** - A progressive Node.js framework
-- 🔐 **Authentication & Authorization** - JWT-based auth with refresh tokens
-- 🗄️ **Database Integration** - PostgreSQL with Drizzle ORM
-- 📝 **API Documentation** - Swagger/OpenAPI integration
-- ✅ **Validation** - Input validation with class-validator
-- 🔒 **Security** - Helmet for security headers, rate limiting
-- 🐳 **Docker Support** - Docker Compose for development
-- 📊 **Health Checks** - Database and application health monitoring
-- 🧪 **Testing Setup** - Jest configuration for unit and integration tests
-- 📚 **Code Quality** - ESLint, Prettier, and TypeScript strict mode
+- 🏫 **Multi-tenant Architecture** - Support for multiple school campuses
+- 👥 **Comprehensive User Management** - Students, teachers, parents, and administrators
+- 📚 **Academic Management** - Grade levels, subjects, assessments, and progress tracking
+- 👨‍👩‍👧‍👦 **Family Management** - Complex family structures with multiple guardians
+- 📊 **Assessment System** - Assignments, marks, and weighted calculations
+- 📅 **Attendance Tracking** - Session-based attendance with multiple session types
+- 🎯 **Learning Targets** - Sprint-based targets with external platform integration
+- 🏆 **Badge System** - Achievement recognition and motivation
+- 📋 **Audit System** - Comprehensive logging and change tracking
+- 🔐 **Security** - JWT authentication, role-based access control, and tenant isolation
 
 ## Quick Start
 
 ### Prerequisites
 
-- Node.js (v18 or higher)
-- Docker and Docker Compose
-- npm or yarn
+- Node.js 18+
+- PostgreSQL 15+
+- Docker & Docker Compose (optional)
 
 ### Installation
 
 1. **Clone the repository**
-```bash
-git clone <repository-url>
-cd nestjs-starter
-```
+   ```bash
+   git clone <repository-url>
+   cd koa-academy-sms
+   ```
 
 2. **Install dependencies**
-```bash
-npm install
-```
+   ```bash
+   npm install
+   ```
 
-3. **Environment setup**
-```bash
-cp .env.example .env
-# Edit .env with your configuration
-```
+3. **Set up environment variables**
+   ```bash
+   cp .env.example .env
+   # Edit .env with your configuration
+   ```
 
-4. **Start the database**
-```bash
-docker-compose up -d postgres
-```
+4. **Start database with Docker**
+   ```bash
+   npm run docker:up
+   ```
 
 5. **Run database migrations**
-```bash
-npm run db:generate
-npm run db:migrate
-```
+   ```bash
+   npm run db:migrate
+   ```
 
-6. **Start the application**
+6. **Seed the database**
+   ```bash
+   npm run db:seed
+   ```
+
+7. **Start the application**
+   ```bash
+   npm run start:dev
+   ```
+
+## API Documentation
+
+Visit http://localhost:3000/api/docs for interactive API documentation.
+
+## Database Management
+
+- **Generate migration**: `npm run db:generate`
+- **Run migrations**: `npm run db:migrate`
+- **View database**: `npm run db:studio`
+- **Seed database**: `npm run db:seed`
+
+## Architecture
+
+### Multi-Tenant Design
+- **School-based isolation**: All data is isolated by `schoolId`
+- **Tenant context**: Automatic tenant filtering in all queries
+- **Security**: Role-based access control with tenant boundaries
+
+### Database Schema
+- **Schools**: Multi-campus support
+- **Users**: Unified user accounts with role-based access
+- **Students**: Comprehensive student profiles with family relationships
+- **Teachers**: Teacher management with academic assignments
+- **Academic**: Grade levels, subjects, modules with flexible progression
+- **Assessments**: Weighted marking system with moderation support
+- **Attendance**: Session-based tracking with multiple session types
+- **Audit**: Complete change tracking and user activity logs
+
+## Default Users
+
+After seeding, you can login with:
+
+- **Admin**: admin@koa.edu.za / Admin123!
+- **Teacher**: sarah.johnson@koa.edu.za / Teacher123!
+- **Parent**: parent@smith.family / Parent123!
+
+## Development
+
 ```bash
 # Development
 npm run start:dev
 
-# Production
-npm run build
-npm run start:prod
-```
-
-## API Documentation
-
-Once the application is running, you can access the API documentation at:
-- Swagger UI: http://localhost:3000/api/docs
-
-## Database Management
-
-### Drizzle Commands
-
-```bash
-# Generate migrations
-npm run db:generate
-
-# Run migrations
-npm run db:migrate
-
-# Open Drizzle Studio
-npm run db:studio
-```
-
-### Database Access
-
-- **PostgreSQL**: localhost:5432
-- **pgAdmin**: http://localhost:5050
-  - Email: admin@admin.com
-  - Password: admin
-
-## Project Structure
-
-```
-src/
-├── auth/                 # Authentication module
-│   ├── dto/             # Data transfer objects
-│   ├── guards/          # Auth guards
-│   ├── interfaces/      # TypeScript interfaces
-│   └── strategies/      # Passport strategies
-├── common/              # Shared utilities
-│   ├── filters/         # Exception filters
-│   └── utils/           # Utility functions
-├── database/            # Database configuration
-│   ├── schema.ts        # Drizzle schema definitions
-│   └── *.ts            # Database-related files
-├── health/              # Health check module
-├── posts/               # Posts feature module
-├── users/               # Users module
-└── main.ts             # Application entry point
-```
-
-## Available Scripts
-
-```bash
-# Development
-npm run start:dev        # Start in watch mode
-npm run start:debug      # Start in debug mode
-
-# Building
-npm run build           # Build the application
-npm run start:prod      # Start production build
-
 # Testing
-npm run test            # Run unit tests
-npm run test:watch      # Run tests in watch mode
-npm run test:cov        # Run tests with coverage
-npm run test:e2e        # Run end-to-end tests
+npm run test
+npm run test:e2e
 
-# Code Quality
-npm run lint            # Run ESLint
-npm run format          # Format code with Prettier
+# Linting
+npm run lint
 
 # Database
-npm run db:generate     # Generate database migrations
-npm run db:migrate      # Run database migrations
-npm run db:studio       # Open Drizzle Studio
+npm run db:studio  # Open Drizzle Studio
 ```
 
-## Authentication
+## Production Deployment
 
-The starter includes a complete authentication system:
-
-- **Registration**: POST `/auth/register`
-- **Login**: POST `/auth/login`
-- **Logout**: POST `/auth/logout`
-- **Profile**: GET `/auth/me`
-- **Refresh Token**: GET `/auth/refresh`
-
-### Usage Example
-
-```bash
-# Register a new user
-curl -X POST http://localhost:3000/auth/register \
-  -H "Content-Type: application/json" \
-  -d '{"email": "user@example.com", "name": "John Doe", "password": "password123"}'
-
-# Login
-curl -X POST http://localhost:3000/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{"email": "user@example.com", "password": "password123"}'
-```
-
-## Testing
-
-```bash
-# Run all tests
-npm test
-
-# Run tests in watch mode
-npm run test:watch
-
-# Run tests with coverage
-npm run test:cov
-
-# Run e2e tests
-npm run test:e2e
-```
-
-## Security Features
-
-- **Helmet**: Security headers
-- **Rate Limiting**: Configurable request throttling
-- **JWT Authentication**: Secure token-based auth
-- **Input Validation**: Automatic request validation
-- **Error Handling**: Comprehensive error management
-
-## Environment Variables
-
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `PORT` | Server port | `3000` |
-| `NODE_ENV` | Environment | `development` |
-| `POSTGRES_HOST` | Database host | `localhost` |
-| `POSTGRES_PORT` | Database port | `5432` |
-| `POSTGRES_USER` | Database user | `postgres` |
-| `POSTGRES_PASSWORD` | Database password | `password` |
-| `POSTGRES_DB` | Database name | `nestjs_db` |
-| `JWT_ACCESS_TOKEN_SECRET` | JWT access token secret | - |
-| `JWT_ACCESS_TOKEN_EXPIRATION_TIME` | Access token expiry (seconds) | `900` |
-| `JWT_REFRESH_TOKEN_SECRET` | JWT refresh token secret | - |
-| `JWT_REFRESH_TOKEN_EXPIRATION_TIME` | Refresh token expiry (seconds) | `604800` |
+1. Set production environment variables
+2. Build the application: `npm run build`
+3. Run migrations: `npm run db:migrate`
+4. Start production server: `npm run start:prod`
 
 ## Contributing
 
 1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+2. Create a feature branch
+3. Make your changes
+4. Add tests
+5. Submit a pull request
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## Acknowledgments
-
-Based on the comprehensive NestJS course materials covering:
-- Authentication and authorization
-- Database integration with Drizzle ORM
-- API documentation with Swagger
-- Security best practices
-- Testing strategies
-- Error handling and validation
+This project is licensed under the MIT License.

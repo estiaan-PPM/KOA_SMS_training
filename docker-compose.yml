@@ -1,44 +1,56 @@
+# docker-compose.yml
 version: '3.8'
 
 services:
   postgres:
     image: postgres:15-alpine
-    container_name: nestjs-postgres
+    container_name: koa-academy-db
+    restart: unless-stopped
     environment:
-      POSTGRES_DB: nestjs_db
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: password
+      POSTGRES_USER: koa_admin
+      POSTGRES_PASSWORD: secure_password_here
+      POSTGRES_DB: koa_academy_sms
     ports:
-      - '5432:5432'
+      - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./database/init:/docker-entrypoint-initdb.d
     networks:
-      - nestjs-network
+      - koa-network
 
   pgadmin:
     image: dpage/pgadmin4:latest
-    container_name: nestjs-pgadmin
+    container_name: koa-academy-pgadmin
+    restart: unless-stopped
     environment:
-      PGADMIN_DEFAULT_EMAIL: admin@admin.com
-      PGADMIN_DEFAULT_PASSWORD: admin
+      PGADMIN_DEFAULT_EMAIL: admin@koaacademy.edu.za
+      PGADMIN_DEFAULT_PASSWORD: admin123
     ports:
-      - '5050:80'
+      - "8080:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    networks:
+      - koa-network
     depends_on:
       - postgres
-    networks:
-      - nestjs-network
 
   redis:
-    image: redis:alpine
-    container_name: nestjs-redis
+    image: redis:7-alpine
+    container_name: koa-academy-redis
+    restart: unless-stopped
     ports:
-      - '6379:6379'
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
     networks:
-      - nestjs-network
+      - koa-network
 
 volumes:
   postgres_data:
+  pgadmin_data:
+  redis_data:
 
 networks:
-  nestjs-network:
+  koa-network:
     driver: bridge
+

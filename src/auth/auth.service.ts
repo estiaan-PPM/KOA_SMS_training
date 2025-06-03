@@ -1,110 +1,163 @@
-import { Injectable, HttpException, HttpStatus } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
+import { Injectable, UnauthorizedException, ConflictException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
+import { DatabaseService } from '../database/database.service';
+import { eq, and } from 'drizzle-orm';
+import * as schema from '../database/schema';
+import { CreateUser, User } from '../database/types';
 
-import { UsersService } from '../users/users.service';
-import { RegisterDto } from './dto/register.dto';
-import { TokenPayload } from './interfaces/token-payload.interface';
-import { PostgresErrorCode } from '../database/postgres-error-codes.enum';
-import { isDatabaseError } from '../common/utils/database-error.util';
+export interface JwtPayload {
+  sub: number;
+  email: string;
+  schoolId: number;
+  userType: string;
+  iat?: number;
+  exp?: number;
+}
 
 @Injectable()
 export class AuthService {
   constructor(
-    private readonly usersService: UsersService,
+    private readonly databaseService: DatabaseService,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
   ) {}
 
-  async register(registrationData: RegisterDto) {
-    const hashedPassword = await bcrypt.hash(registrationData.password, 10);
-    
-    try {
-      const createdUser = await this.usersService.create({
-        ...registrationData,
-        password: hashedPassword,
-      });
-      
-      return createdUser;
-    } catch (error) {
-      if (
-        isDatabaseError(error) &&
-        error.code === PostgresErrorCode.UniqueViolation
-      ) {
-        throw new HttpException(
-          'User with that email already exists',
-          HttpStatus.BAD_REQUEST,
-        );
-      }
-      throw new HttpException(
-        'Something went wrong',
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
-    }
-  }
+  async validateUser(email: string, password: string, schoolId?: number): Promise<User | null> {
+    const whereClause = schoolId 
+      ? and(eq(schema.userAccounts.email, email), eq(schema.userAccounts.schoolId, schoolId))
+      : eq(schema.userAccounts.email, email);
 
-  async getAuthenticatedUser(email: string, plainTextPassword: string) {
-    try {
-      const user = await this.usersService.getByEmail(email);
-      if (!user.password) {
-        throw new HttpException(
-          'User registered with external provider',
-          HttpStatus.BAD_REQUEST,
-        );
-      }
-      await this.verifyPassword(plainTextPassword, user.password);
-      return user;
-    } catch (error) {
-      throw new HttpException(
-        'Wrong credentials provided',
-        HttpStatus.BAD_REQUEST,
-      );
-    }
-  }
-
-  private async verifyPassword(
-    plainTextPassword: string,
-    hashedPassword: string,
-  ) {
-    const isPasswordMatching = await bcrypt.compare(
-      plainTextPassword,
-      hashedPassword,
-    );
-    if (!isPasswordMatching) {
-      throw new HttpException(
-        'Wrong credentials provided',
-        HttpStatus.BAD_REQUEST,
-      );
-    }
-  }
-
-  public getCookieWithJwtAccessToken(userId: number) {
-    const payload: TokenPayload = { userId };
-    const token = this.jwtService.sign(payload, {
-      secret: this.configService.get('JWT_ACCESS_TOKEN_SECRET'),
-      expiresIn: `${this.configService.get('JWT_ACCESS_TOKEN_EXPIRATION_TIME')}s`,
+    const user = await this.databaseService.db.query.userAccounts.findFirst({
+      where: whereClause,
     });
-    
-    return `Authentication=${token}; HttpOnly; Path=/; Max-Age=${this.configService.get('JWT_ACCESS_TOKEN_EXPIRATION_TIME')}`;
+
+    if (user && user.passwordHash && await bcrypt.compare(password, user.passwordHash)) {
+      const { passwordHash, refreshTokenHash, ...result } = user;
+      return result as User;
+    }
+    return null;
   }
 
-  public getCookieWithJwtRefreshToken(userId: number) {
-    const payload: TokenPayload = { userId };
-    const token = this.jwtService.sign(payload, {
+  async login(user: User) {
+    const payload: JwtPayload = { 
+      sub: user.userId, 
+      email: user.email, 
+      schoolId: user.schoolId,
+      userType: user.userType,
+    };
+
+    const accessToken = this.jwtService.sign(payload);
+    const refreshToken = this.jwtService.sign(payload, {
       secret: this.configService.get('JWT_REFRESH_TOKEN_SECRET'),
-      expiresIn: `${this.configService.get('JWT_REFRESH_TOKEN_EXPIRATION_TIME')}s`,
+      expiresIn: this.configService.get('JWT_REFRESH_TOKEN_EXPIRATION_TIME'),
     });
-    
-    const cookie = `Refresh=${token}; HttpOnly; Path=/; Max-Age=${this.configService.get('JWT_REFRESH_TOKEN_EXPIRATION_TIME')}`;
-    
+
+    // Store hashed refresh token
+    await this.updateRefreshToken(user.userId, refreshToken);
+
     return {
-      cookie,
-      token,
+      accessToken,
+      refreshToken,
+      user: {
+        userId: user.userId,
+        email: user.email,
+        userType: user.userType,
+        schoolId: user.schoolId,
+      },
     };
   }
 
-  public getCookiesForLogOut() {
+  async register(userData: CreateUser & { password: string }): Promise<User> {
+    const existingUser = await this.databaseService.db.query.userAccounts.findFirst({
+      where: and(
+        eq(schema.userAccounts.email, userData.email),
+        eq(schema.userAccounts.schoolId, userData.schoolId),
+      ),
+    });
+
+    if (existingUser) {
+      throw new ConflictException('User already exists');
+    }
+
+    const hashedPassword = await bcrypt.hash(userData.password, 12);
+    
+    const [newUser] = await this.databaseService.db
+      .insert(schema.userAccounts)
+      .values({
+        ...userData,
+        passwordHash: hashedPassword,
+      })
+      .returning();
+
+    const { passwordHash, refreshTokenHash, ...result } = newUser;
+    return result as User;
+  }
+
+  async refreshTokens(userId: number, refreshToken: string) {
+    const user = await this.databaseService.db.query.userAccounts.findFirst({
+      where: eq(schema.userAccounts.userId, userId),
+    });
+
+    if (!user || !user.refreshTokenHash) {
+      throw new UnauthorizedException('Invalid refresh token');
+    }
+
+    const isRefreshTokenValid = await bcrypt.compare(refreshToken, user.refreshTokenHash);
+    if (!isRefreshTokenValid) {
+      throw new UnauthorizedException('Invalid refresh token');
+    }
+
+    const payload: JwtPayload = { 
+      sub: user.userId, 
+      email: user.email, 
+      schoolId: user.schoolId,
+      userType: user.userType,
+    };
+
+    const accessToken = this.jwtService.sign(payload);
+    const newRefreshToken = this.jwtService.sign(payload, {
+      secret: this.configService.get('JWT_REFRESH_TOKEN_SECRET'),
+      expiresIn: this.configService.get('JWT_REFRESH_TOKEN_EXPIRATION_TIME'),
+    });
+
+    await this.updateRefreshToken(userId, newRefreshToken);
+
+    return {
+      accessToken,
+      refreshToken: newRefreshToken,
+    };
+  }
+
+  async logout(userId: number) {
+    await this.databaseService.db
+      .update(schema.userAccounts)
+      .set({ refreshTokenHash: null })
+      .where(eq(schema.userAccounts.userId, userId));
+  }
+
+  private async updateRefreshToken(userId: number, refreshToken: string) {
+    const hashedRefreshToken = await bcrypt.hash(refreshToken, 12);
+    await this.databaseService.db
+      .update(schema.userAccounts)
+      .set({ 
+        refreshTokenHash: hashedRefreshToken,
+        lastLoginDate: new Date(),
+      })
+      .where(eq(schema.userAccounts.userId, userId));
+  }
+
+  getCookieWithJwtAccessToken(token: string) {
+    return `Authentication=${token}; HttpOnly; Path=/; Max-Age=${this.configService.get('JWT_ACCESS_TOKEN_EXPIRATION_TIME')}`;
+  }
+
+  getCookieWithJwtRefreshToken(token: string) {
+    const cookie = `Refresh=${token}; HttpOnly; Path=/; Max-Age=${this.configService.get('JWT_REFRESH_TOKEN_EXPIRATION_TIME')}`;
+    return { cookie, token };
+  }
+
+  getCookiesForLogOut() {
     return [
       'Authentication=; HttpOnly; Path=/; Max-Age=0',
       'Refresh=; HttpOnly; Path=/; Max-Age=0',
