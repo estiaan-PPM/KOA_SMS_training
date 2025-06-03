@@ -4,7 +4,10 @@ import { DatabaseService } from '../database/database.service';
 import { eq, and, ilike, desc, asc } from 'drizzle-orm';
 import * as schema from '../database/schema';
 import { Student, CreateStudent, PaginatedResult, TenantContext } from '../database/types';
-import { CreateStudentDto, UpdateStudentDto, StudentQueryDto } from './dto';
+import { CreateStudentDto } from './dto/create-student.dto';
+import { StudentQueryDto } from './dto/student-query.dto';
+import { UpdateStudentDto } from './dto/update-student.dto';
+
 
 @Injectable()
 export class StudentsService {
@@ -22,7 +25,7 @@ export class StudentsService {
 
       return student;
     } catch (error) {
-      if (error.code === '23505') { // Unique violation
+      if (isDatabaseError(error) && error.code === '23505') { // Unique violation
         throw new ConflictException('Student with this information already exists');
       }
       throw error;
@@ -263,4 +266,8 @@ export class StudentsService {
       byGradeLevel: byGrade,
     };
   }
+}
+
+function isDatabaseError(error: unknown): error is { code: string } {
+  return typeof error === 'object' && error !== null && 'code' in error;
 }

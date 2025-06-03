@@ -1,6 +1,7 @@
 // src/database/database.module.ts (Updated)
 import { Global, Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { Pool } from 'pg';
 import { DatabaseService } from './database.service';
 
 export interface DatabaseOptions {
@@ -16,13 +17,12 @@ export const CONNECTION_POOL = 'CONNECTION_POOL';
 
 @Global()
 @Module({
+  imports: [ConfigModule],
   providers: [
-    DatabaseService,
     {
       provide: CONNECTION_POOL,
       inject: [ConfigService],
-      useFactory: async (configService: ConfigService) => {
-        const { Pool } = await import('pg');
+      useFactory: (configService: ConfigService) => {
         return new Pool({
           host: configService.get('POSTGRES_HOST'),
           port: configService.get('POSTGRES_PORT'),
@@ -36,6 +36,7 @@ export const CONNECTION_POOL = 'CONNECTION_POOL';
         });
       },
     },
+    DatabaseService,
   ],
   exports: [DatabaseService],
 })

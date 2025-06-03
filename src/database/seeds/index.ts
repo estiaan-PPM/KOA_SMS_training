@@ -63,7 +63,7 @@ async function seed() {
           termNumber: 1,
           startDate: '2025-01-15',
           endDate: '2025-03-31',
-          yearWeighting: 0.30,
+          yearWeighting: '0.30',
         },
         {
           academicYearId: academicYear.academicYearId,
@@ -71,7 +71,7 @@ async function seed() {
           termNumber: 2,
           startDate: '2025-04-15',
           endDate: '2025-06-30',
-          yearWeighting: 0.30,
+          yearWeighting: '0.30',
         },
         {
           academicYearId: academicYear.academicYearId,
@@ -79,7 +79,7 @@ async function seed() {
           termNumber: 3,
           startDate: '2025-07-15',
           endDate: '2025-09-30',
-          yearWeighting: 0.40,
+          yearWeighting: '0.40',
         },
       ])
       .returning();

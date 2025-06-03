@@ -16,6 +16,15 @@ export interface JwtPayload {
   exp?: number;
 }
 
+// Add this interface for login data
+export interface LoginUserData {
+  userId: number;
+  email: string;
+  userType: string;
+  schoolId: number;
+  relatedEntityId?: number;
+}
+
 @Injectable()
 export class AuthService {
   constructor(
@@ -40,12 +49,13 @@ export class AuthService {
     return null;
   }
 
-  async login(user: User) {
+  // Modified login method to accept LoginUserData or User
+  async login(userData: LoginUserData | User) {
     const payload: JwtPayload = { 
-      sub: user.userId, 
-      email: user.email, 
-      schoolId: user.schoolId,
-      userType: user.userType,
+      sub: userData.userId, 
+      email: userData.email, 
+      schoolId: userData.schoolId,
+      userType: userData.userType,
     };
 
     const accessToken = this.jwtService.sign(payload);
@@ -55,18 +65,37 @@ export class AuthService {
     });
 
     // Store hashed refresh token
-    await this.updateRefreshToken(user.userId, refreshToken);
+    await this.updateRefreshToken(userData.userId, refreshToken);
 
     return {
       accessToken,
       refreshToken,
       user: {
-        userId: user.userId,
-        email: user.email,
-        userType: user.userType,
-        schoolId: user.schoolId,
+        userId: userData.userId,
+        email: userData.email,
+        userType: userData.userType,
+        schoolId: userData.schoolId,
       },
     };
+  }
+
+  // Alternative: Create a separate method specifically for JWT-based login
+  async loginFromJwt(jwtUser: LoginUserData) {
+    return this.login(jwtUser);
+  }
+
+  // Or if you prefer, create a method that fetches the full user and then logs in
+  async loginById(userId: number) {
+    const user = await this.databaseService.db.query.userAccounts.findFirst({
+      where: eq(schema.userAccounts.userId, userId),
+    });
+
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+
+    const { passwordHash, refreshTokenHash, ...userData } = user;
+    return this.login(userData as User);
   }
 
   async register(userData: CreateUser & { password: string }): Promise<User> {

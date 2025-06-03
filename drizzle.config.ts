@@ -1,23 +1,18 @@
-// drizzle.config.ts
-import { defineConfig } from 'drizzle-kit';
+import type { Config } from 'drizzle-kit';
 import { ConfigService } from '@nestjs/config';
 import 'dotenv/config';
 
 const configService = new ConfigService();
 
-export default defineConfig({
-  schema: './src/database/schema/index.ts',
+export default {
+  schema: './src/database/schema.ts',
   out: './drizzle',
-  dialect: 'postgresql',
+  driver: 'pg',
   dbCredentials: {
-    host: configService.get('POSTGRES_HOST') || 'localhost',
-    port: parseInt(configService.get('POSTGRES_PORT')) || 5432,
-    user: configService.get('POSTGRES_USER') || 'postgres',
-    password: configService.get('POSTGRES_PASSWORD') || 'password',
-    database: configService.get('POSTGRES_DB') || 'koa_academy',
-    ssl: configService.get('POSTGRES_SSL') === 'true',
+    host: configService.get('POSTGRES_HOST', 'localhost'),
+    port: configService.get('POSTGRES_PORT', 5432),
+    user: configService.get('POSTGRES_USER', 'postgres'),
+    password: configService.get('POSTGRES_PASSWORD', 'password'),
+    database: configService.get('POSTGRES_DB', 'nestjs_db'),
   },
-  verbose: true,
-  strict: true,
-});
-
+} satisfies Config;

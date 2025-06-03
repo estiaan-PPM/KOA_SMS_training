@@ -4,7 +4,10 @@ import { DatabaseService } from '../database/database.service';
 import { eq, and, ilike, asc } from 'drizzle-orm';
 import * as schema from '../database/schema';
 import { Teacher, CreateTeacher, PaginatedResult, TenantContext } from '../database/types';
-import { CreateTeacherDto, UpdateTeacherDto, TeacherQueryDto } from './dto';
+import { CreateTeacherDto } from './dto/create-teacher.dto';
+import { TeacherQueryDto } from './dto/teacher-query.dto';
+import { UpdateTeacherDto } from './dto/update-teacher.dto';
+
 
 @Injectable()
 export class TeachersService {
@@ -22,7 +25,7 @@ export class TeachersService {
 
       return teacher;
     } catch (error) {
-      if (error.code === '23505') { // Unique violation
+      if (isDatabaseError(error) && error.code === '23505') { // Unique violation
         throw new ConflictException('Teacher with this email already exists');
       }
       throw error;
@@ -123,7 +126,7 @@ export class TeachersService {
 
       return updatedTeacher;
     } catch (error) {
-      if (error.code === '23505') { // Unique violation
+      if (isDatabaseError(error) && error.code === '23505') { // Unique violation
         throw new ConflictException('Teacher with this email already exists');
       }
       throw error;
@@ -157,5 +160,8 @@ export class TeachersService {
       inactiveTeachers,
     };
   }
+}
+function isDatabaseError(error: unknown): error is { code: string } {
+  return typeof error === 'object' && error !== null && 'code' in error;
 }
 

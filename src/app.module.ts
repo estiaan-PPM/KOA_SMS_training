@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import * as Joi from 'joi';
@@ -54,11 +54,18 @@ import { LoggingInterceptor } from './audit/interceptors/logging.interceptor';
       }),
     }),
 
-    // Rate limiting
+    // Rate limiting - FIXED
     ThrottlerModule.forRootAsync({
-      useFactory: () => ({
-        ttl: parseInt(process.env.THROTTLE_TTL) || 60,
-        limit: parseInt(process.env.THROTTLE_LIMIT) || 10,
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService) => ({
+        throttlers: [
+          {
+            name: 'default',
+            ttl: configService.get<number>('THROTTLE_TTL', 60) * 1000, // Convert to milliseconds
+            limit: configService.get<number>('THROTTLE_LIMIT', 10),
+          },
+        ],
       }),
     }),
 

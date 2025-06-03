@@ -13,12 +13,14 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { TeachersService } from './teachers.service';
-import { CreateTeacherDto, UpdateTeacherDto, TeacherQueryDto } from './dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { CurrentTenant } from '../auth/decorators/tenant.decorator';
 import { TenantContext } from '../database/types';
+import { CreateTeacherDto } from './dto/create-teacher.dto';
+import { TeacherQueryDto } from './dto/teacher-query.dto';
+import { UpdateTeacherDto } from './dto/update-teacher.dto';
 
 @ApiTags('teachers')
 @Controller('teachers')

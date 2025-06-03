@@ -19,7 +19,7 @@ export class SchoolsService {
 
       return school;
     } catch (error) {
-      if (error.code === '23505') { // Unique violation
+      if (isDatabaseError(error) && error.code === '23505') { // Unique violation
         throw new ConflictException('School with this code already exists');
       }
       throw error;
@@ -98,7 +98,7 @@ export class SchoolsService {
 
       return updatedSchool;
     } catch (error) {
-      if (error.code === '23505') { // Unique violation
+      if (isDatabaseError(error) && error.code === '23505') { // Unique violation
         throw new ConflictException('School with this code already exists');
       }
       throw error;
@@ -124,5 +124,9 @@ export class SchoolsService {
       inactiveSchools: totalSchools - activeSchools,
     };
   }
+}
+
+function isDatabaseError(error: unknown): error is { code: string } {
+  return typeof error === 'object' && error !== null && 'code' in error;
 }
 
