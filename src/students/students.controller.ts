@@ -1,5 +1,5 @@
 
-import { Body, Controller, Delete, Get, Param, Post, Put } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Put } from '@nestjs/common';
 import StudentsService from './student.service';
 import {CreateStudentDto} from './dto/create-student.dto';
 import {UpdateStudentDto} from './dto/update-student.dto';
