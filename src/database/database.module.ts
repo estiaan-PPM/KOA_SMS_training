@@ -1,54 +1,26 @@
-// src/database/database.module.ts (Dynamic only)
-import { DynamicModule, Global, Module } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { Pool } from 'pg';
-import { DatabaseService } from './database.service';
+// import { Module } from "@nestjs/common";
+// import { TypeOrmModule } from '@nestjs/typeorm'
+// import { ConfigModule, ConfigService } from "@nestjs/config";
 
-export interface DatabaseOptions {
-  host: string;
-  port: number;
-  user: string;
-  password: string;
-  database: string;
-  ssl?: boolean;
-}
 
-export const CONNECTION_POOL = 'CONNECTION_POOL';
-
-@Global()
-@Module({})
-export class DatabaseModule {
-  static forRootAsync(options: {
-    imports: any[];
-    inject: any[];
-    useFactory: (configService: ConfigService) => DatabaseOptions;
-  }): DynamicModule {
-    return {
-      module: DatabaseModule,
-      imports: options.imports,
-      providers: [
-        {
-          provide: CONNECTION_POOL,
-          inject: options.inject,
-          useFactory: (configService: ConfigService) => {
-            const dbOptions = options.useFactory(configService);
-            return new Pool({
-              host: dbOptions.host,
-              port: dbOptions.port,
-              user: dbOptions.user,
-              password: dbOptions.password,
-              database: dbOptions.database,
-              ssl: dbOptions.ssl ? { rejectUnauthorized: false } : false,
-              max: 20,
-              idleTimeoutMillis: 30000,
-              connectionTimeoutMillis: 2000,
-            });
-          },
-        },
-        DatabaseService,
-      ],
-      exports: [DatabaseService],
-      global: true,
-    };
-  }
-}
+// @Module({
+//     imports: [
+//         TypeOrmModule.forRootAsync({
+//             imports: [ConfigModule],
+//             inject: [ConfigService],
+//             useFactory: (configService: ConfigService) => ({
+//                 type: 'postgres',
+//                 host: configService.get('POSTGRES_HOST'),
+//                 port: configService.get('POSTGRES_PORT'),
+//                 username: configService.get('POSTGRES_USER'),
+//                 password: configService.get('POSTGRES_PASSWORD'),
+//                 database: configService.get('POSTGRES_DB'),
+//                 entities: [
+//                 __dirname + '/../**/*.entity.ts',
+//                 ],
+//                 synchronize: true,
+//             })
+//         }),
+//     ]
+// })
+// export class DatabaseModule{}

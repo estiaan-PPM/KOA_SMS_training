@@ -1,56 +1,30 @@
-# docker-compose.yml
-version: '3.8'
-
 services:
-  postgres:
-    image: postgres:15-alpine
-    container_name: koa-academy-db
-    restart: unless-stopped
-    environment:
-      POSTGRES_USER: koa_admin
-      POSTGRES_PASSWORD: secure_password_here
-      POSTGRES_DB: koa_academy_sms
+  building_block:
+    container_name: foundation
+    image: postgres:latest
     ports:
-      - "5432:5432"
+    - "5432:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./database/init:/docker-entrypoint-initdb.d
+    - /data/postgres:/data/postgres
+    env_file:
+    - docker.env
     networks:
-      - koa-network
+    - postgres
 
   pgadmin:
+    links:
+    - building_block:foundation
+    container_name: pgadmin
     image: dpage/pgadmin4:latest
-    container_name: koa-academy-pgadmin
-    restart: unless-stopped
-    environment:
-      PGADMIN_DEFAULT_EMAIL: admin@koaacademy.edu.za
-      PGADMIN_DEFAULT_PASSWORD: admin123
     ports:
-      - "8080:80"
+    - "8080:80"
     volumes:
-      - pgadmin_data:/var/lib/pgadmin
+    - /data/pgadmin:/root/.pgadmin
+    env_file:
+    - docker.env
     networks:
-      - koa-network
-    depends_on:
-      - postgres
-
-  redis:
-    image: redis:7-alpine
-    container_name: koa-academy-redis
-    restart: unless-stopped
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis_data:/data
-    networks:
-      - koa-network
-
-volumes:
-  postgres_data:
-  pgadmin_data:
-  redis_data:
-
+    - postgres
 networks:
-  koa-network:
+  postgres:
     driver: bridge
 

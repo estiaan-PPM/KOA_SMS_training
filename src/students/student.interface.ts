@@ -1,4 +1,4 @@
-export class UpdateStudentDto {
+export interface Student {
     id: number;
     
     firstName: string;
