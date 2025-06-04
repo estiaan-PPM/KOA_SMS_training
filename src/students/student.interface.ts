@@ -6,4 +6,5 @@ export interface Student {
     lastName: string;
 
     dateOfBirth: string;
+
 }

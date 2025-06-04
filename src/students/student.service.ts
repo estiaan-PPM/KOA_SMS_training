@@ -2,9 +2,12 @@ import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import {CreateStudentDto} from './dto/create-student.dto';
 import {Student} from './student.interface';
 import {UpdateStudentDto} from './dto/update-student.dto';
+import { EventBus } from '@nestjs/cqrs';
 
 @Injectable()
 export default class StudentsService {
+    constructor(private readonly eventBus: EventBus) {}
+
     private lastStudentId = 0;
     private students: Student[] = [];
 
@@ -37,8 +40,17 @@ export default class StudentsService {
         const newStudent = {
         id: ++this.lastStudentId,
         ...student
-        }
+        };
         this.students.push(newStudent);
+
+        this.eventBus.publish(
+            new StudentCreatedEvent(
+                newStudent.id.toString(),
+                newStudent.email,
+                newStudent.firstName
+            )
+        );
+
         return newStudent;
     }
     

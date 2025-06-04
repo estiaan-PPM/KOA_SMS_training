@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { StudentsModule } from './students/student.module';
+import { CqrsModule } from '@nestjs/cqrs';
 // import { ConfigModule } from '@nestjs/config';
 // import * as Joi from '@hapi/joi';
 // import { DatabaseModule } from './database/database.module';
@@ -18,6 +19,7 @@ import { StudentsModule } from './students/student.module';
         //     })
         // }),
         // DatabaseModule,
+        CqrsModule.forRoot()
     ],
     controllers: [],
     providers: [],
