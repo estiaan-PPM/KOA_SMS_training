@@ -2,9 +2,12 @@ import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import {CreateStudentDto} from './dto/create-student.dto';
 import {Student} from './student.interface';
 import {UpdateStudentDto} from './dto/update-student.dto';
+import { EventBus } from '@nestjs/cqrs';
 
 @Injectable()
 export default class StudentsService {
+    constructor(private readonly eventBus: EventBus) {}
+
     private lastStudentId = 0;
     private students: Student[] = [];
 
