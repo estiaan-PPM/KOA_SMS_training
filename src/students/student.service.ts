@@ -5,6 +5,7 @@ import {UpdateStudentDto} from './dto/update-student.dto';
 
 @Injectable()
 export default class StudentsService {
+
     private lastStudentId = 0;
     private students: Student[] = [];
 
@@ -23,8 +24,12 @@ export default class StudentsService {
     replaceStudent(id: number, student: UpdateStudentDto) {
         const studentIndex = this.students.findIndex(student => student.id === id);
         if (studentIndex > -1) {
-        this.students[studentIndex] = student;
-        return student;
+            this.students[studentIndex] = { 
+                ...this.students[studentIndex], 
+                ...student,
+                id // This ensures ID from URL parameter is always used
+            };
+            return this.students[studentIndex];
         }
         throw new HttpException('student not found', HttpStatus.NOT_FOUND);
     }
@@ -33,8 +38,9 @@ export default class StudentsService {
         const newStudent = {
         id: ++this.lastStudentId,
         ...student
-        }
+        };
         this.students.push(newStudent);
+
         return newStudent;
     }
     
