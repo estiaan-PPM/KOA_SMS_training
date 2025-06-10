@@ -103,3 +103,6 @@ dist
 
 # Drizzle
 drizzle/
+
+#Package-lock
+package-lock.json

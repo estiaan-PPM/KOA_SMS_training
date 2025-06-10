@@ -21,6 +21,33 @@ export default class StudentsService {
         throw new HttpException('Student not found', HttpStatus.NOT_FOUND);
     }
 
+    searchStudents(filters: Student) {
+        let filteredStudents = this.students;
+
+        // Apply each filter if provided
+        if (filters.id) {
+            filteredStudents = filteredStudents.filter(student => student.id === filters.id);
+        }
+        if (filters.firstName) {
+            filteredStudents = filteredStudents.filter(student => 
+            student.firstName.toLowerCase().includes(filters.firstName.toLowerCase())
+            );
+        }
+        if (filters.lastName) {
+            filteredStudents = filteredStudents.filter(student => 
+            student.lastName.toLowerCase().includes(filters.lastName.toLowerCase())
+            );
+        }
+        if (filters.status) {
+            filteredStudents = filteredStudents.filter(student => student.status === filters.status);
+        }
+        if (filters.email) {
+            filteredStudents = filteredStudents.filter(student => student.email === filters.email);
+        }
+
+        return filteredStudents;
+    }
+
     replaceStudent(id: number, student: UpdateStudentDto) {
         const studentIndex = this.students.findIndex(student => student.id === id);
         if (studentIndex > -1) {
