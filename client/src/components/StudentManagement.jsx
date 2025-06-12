@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Search, RefreshCw, Download, Settings, Users, AlertCircle, CheckCircle, Clock, X } from 'lucide-react';
 
 const StudentManagementSystem = () => {
@@ -6,7 +6,6 @@ const StudentManagementSystem = () => {
   const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [totalCount, setTotalCount] = useState(0);
   const [apiConfig, setApiConfig] = useState({
     baseUrl: 'http://localhost:3000/api',
     authToken: ''
@@ -20,29 +19,17 @@ const StudentManagementSystem = () => {
     status: ''
   });
 
-  // Pagination states
-  const [pagination, setPagination] = useState({
-    page: 1,
-    limit: 10,
-    totalPages: 1
-  });
-
-  // Debounce timer for search
-  const [debounceTimer, setDebounceTimer] = useState(null);
-
   // Connection status
   const [connectionStatus, setConnectionStatus] = useState('idle'); // idle, testing, success, error
 
   // Load saved configuration
   useEffect(() => {
-    const savedBaseUrl = localStorage.getItem('react-student-ui-baseUrl');
-    const savedAuthToken = localStorage.getItem('react-student-ui-authToken');
-    
-    if (savedBaseUrl) {
-      setApiConfig(prev => ({ ...prev, baseUrl: savedBaseUrl }));
+    const savedConfig = JSON.parse(localStorage.getItem('react-student-ui-config') || '{}');
+    if (savedConfig.baseUrl) {
+      setApiConfig(prev => ({ ...prev, baseUrl: savedConfig.baseUrl }));
     }
-    if (savedAuthToken) {
-      setApiConfig(prev => ({ ...prev, authToken: savedAuthToken }));
+    if (savedConfig.authToken) {
+      setApiConfig(prev => ({ ...prev, authToken: savedConfig.authToken }));
     }
   }, []);
 
@@ -51,32 +38,14 @@ const StudentManagementSystem = () => {
     loadStudents();
   }, []);
 
-  // Load students when filters or pagination change (with debounce for filters)
+  // Load students when filters change (with debouncing)
   useEffect(() => {
-    if (debounceTimer) {
-      clearTimeout(debounceTimer);
-    }
-
-    const timer = setTimeout(() => {
-      // Reset to page 1 when filters change
-      if (pagination.page > 1) {
-        setPagination(prev => ({ ...prev, page: 1 }));
-      } else {
-        loadStudents();
-      }
+    const timeoutId = setTimeout(() => {
+      loadStudents();
     }, 500); // 500ms debounce
 
-    setDebounceTimer(timer);
-
-    return () => {
-      if (timer) clearTimeout(timer);
-    };
+    return () => clearTimeout(timeoutId);
   }, [filters]);
-
-  // Load students when pagination changes
-  useEffect(() => {
-    loadStudents();
-  }, [pagination.page, pagination.limit]);
 
   // API configuration
   const getApiConfig = () => ({
@@ -90,40 +59,27 @@ const StudentManagementSystem = () => {
     }
   });
 
-  // Build query parameters for your existing API structure
-  const buildQueryParams = useCallback(() => {
+  // Build query parameters from filters
+  const buildQueryParams = () => {
     const params = new URLSearchParams();
     
-    // Add pagination
-    params.append('page', pagination.page.toString());
-    params.append('limit', pagination.limit.toString());
-    
-    // Add filters (only if they have values) - matching your API structure
-    if (filters.firstName.trim()) {
-      params.append('firstName', filters.firstName.trim());
-    }
-    if (filters.lastName.trim()) {
-      params.append('lastName', filters.lastName.trim());
-    }
-    if (filters.email.trim()) {
-      params.append('email', filters.email.trim());
-    }
-    if (filters.status) {
-      params.append('status', filters.status);
-    }
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value && value.trim()) {
+        params.append(key, value.trim());
+      }
+    });
     
     return params.toString();
-  }, [filters, pagination]);
+  };
 
-  // Test API connection using your existing endpoint
+  // Test API connection
   const testConnection = async () => {
     setConnectionStatus('testing');
     setError('');
     
     try {
       const config = getApiConfig();
-      // Test with your existing search endpoint
-      const response = await fetch(`${config.baseURL}/student/search?limit=1`, {
+      const response = await fetch(`${config.baseURL}/students`, {
         method: 'GET',
         headers: config.headers,
         signal: AbortSignal.timeout(config.timeout)
@@ -146,7 +102,7 @@ const StudentManagementSystem = () => {
     }
   };
 
-  // Load students from API using your existing search endpoint
+  // Load students from API with server-side filtering
   const loadStudents = async () => {
     setLoading(true);
     setError('');
@@ -154,12 +110,13 @@ const StudentManagementSystem = () => {
     try {
       const config = getApiConfig();
       const queryParams = buildQueryParams();
-      // Use your existing /api/student/search endpoint
-      const url = `${config.baseURL}/student/search?${queryParams}`;
       
-      console.log('API Call URL:', url); // Debug log to see the actual URL being called
+      // Use search endpoint if filters are applied, otherwise use regular endpoint
+      const endpoint = queryParams 
+        ? `${config.baseURL}/students/search?${queryParams}`
+        : `${config.baseURL}/students`;
       
-      const response = await fetch(url, {
+      const response = await fetch(endpoint, {
         method: 'GET',
         headers: config.headers,
         signal: AbortSignal.timeout(config.timeout)
@@ -170,42 +127,11 @@ const StudentManagementSystem = () => {
       }
       
       const data = await response.json();
-      console.log('API Response:', data); // Debug log to see the response structure
-      
-      // Handle different response formats from your API
-      if (data.students && Array.isArray(data.students)) {
-        // Paginated response format: { students: [...], total: 100, ... }
-        setStudents(data.students);
-        setTotalCount(data.total || data.students.length);
-        setPagination(prev => ({
-          ...prev,
-          totalPages: Math.ceil((data.total || data.students.length) / prev.limit)
-        }));
-      } else if (Array.isArray(data)) {
-        // Simple array response: [student1, student2, ...]
-        setStudents(data);
-        setTotalCount(data.length);
-        setPagination(prev => ({
-          ...prev,
-          totalPages: Math.ceil(data.length / prev.limit)
-        }));
-      } else if (data.data && Array.isArray(data.data)) {
-        // Wrapped response format: { data: [...], count: 100 }
-        setStudents(data.data);
-        setTotalCount(data.count || data.total || data.data.length);
-        setPagination(prev => ({
-          ...prev,
-          totalPages: Math.ceil((data.count || data.total || data.data.length) / prev.limit)
-        }));
-      } else {
-        throw new Error('Invalid response format from API');
-      }
+      setStudents(Array.isArray(data) ? data : []);
       
     } catch (error) {
-      console.error('Load Students Error:', error); // Debug log
       setError(`Failed to load students: ${error.message}`);
       setStudents([]);
-      setTotalCount(0);
     } finally {
       setLoading(false);
     }
@@ -226,26 +152,20 @@ const StudentManagementSystem = () => {
     });
   };
 
-  // Handle pagination
-  const handlePageChange = (newPage) => {
-    if (newPage >= 1 && newPage <= pagination.totalPages) {
-      setPagination(prev => ({ ...prev, page: newPage }));
-    }
-  };
-
-  // Handle page size change
-  const handlePageSizeChange = (newLimit) => {
-    setPagination(prev => ({ 
-      ...prev, 
-      limit: parseInt(newLimit), 
-      page: 1 // Reset to first page
-    }));
-  };
-
   // Handle API config changes
   const handleApiConfigChange = (field, value) => {
-    setApiConfig(prev => ({ ...prev, [field]: value }));
-    localStorage.setItem(`react-student-ui-${field}`, value);
+    const newConfig = { ...apiConfig, [field]: value };
+    setApiConfig(newConfig);
+    
+    // Save to localStorage
+    const savedConfig = JSON.parse(localStorage.getItem('react-student-ui-config') || '{}');
+    savedConfig[field] = value;
+    localStorage.setItem('react-student-ui-config', JSON.stringify(savedConfig));
+  };
+
+  // Manual refresh
+  const handleRefresh = () => {
+    loadStudents();
   };
 
   // Format date utility
@@ -262,6 +182,13 @@ const StudentManagementSystem = () => {
     } catch (error) {
       return 'Invalid Date';
     }
+  };
+
+  // Get full name
+  const getFullName = (student) => {
+    const firstName = student.firstName || '';
+    const lastName = student.lastName || '';
+    return `${firstName} ${lastName}`.trim() || 'N/A';
   };
 
   // Status badge component
@@ -304,103 +231,8 @@ const StudentManagementSystem = () => {
     }
   };
 
-  // Pagination component
-  const Pagination = () => {
-    const getPageNumbers = () => {
-      const pages = [];
-      const maxVisiblePages = 5;
-      const halfVisible = Math.floor(maxVisiblePages / 2);
-      
-      let startPage = Math.max(1, pagination.page - halfVisible);
-      let endPage = Math.min(pagination.totalPages, pagination.page + halfVisible);
-      
-      // Adjust if we're near the beginning or end
-      if (endPage - startPage + 1 < maxVisiblePages) {
-        if (startPage === 1) {
-          endPage = Math.min(pagination.totalPages, startPage + maxVisiblePages - 1);
-        } else {
-          startPage = Math.max(1, endPage - maxVisiblePages + 1);
-        }
-      }
-      
-      for (let i = startPage; i <= endPage; i++) {
-        pages.push(i);
-      }
-      
-      return pages;
-    };
-
-    if (pagination.totalPages <= 1) return null;
-
-    return (
-      <div className="flex items-center justify-between px-6 py-4 bg-gray-50 border-t border-gray-200">
-        <div className="flex items-center gap-2 text-sm text-gray-600">
-          <span>Show</span>
-          <select
-            value={pagination.limit}
-            onChange={(e) => handlePageSizeChange(e.target.value)}
-            className="px-2 py-1 border border-gray-300 rounded focus:outline-none focus:border-indigo-500"
-          >
-            <option value="5">5</option>
-            <option value="10">10</option>
-            <option value="25">25</option>
-            <option value="50">50</option>
-          </select>
-          <span>per page</span>
-          <span className="ml-4">
-            Showing {Math.min((pagination.page - 1) * pagination.limit + 1, totalCount)} to{' '}
-            {Math.min(pagination.page * pagination.limit, totalCount)} of {totalCount} results
-          </span>
-        </div>
-        
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => handlePageChange(1)}
-            disabled={pagination.page === 1}
-            className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            First
-          </button>
-          <button
-            onClick={() => handlePageChange(pagination.page - 1)}
-            disabled={pagination.page === 1}
-            className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            Previous
-          </button>
-          
-          {getPageNumbers().map(pageNum => (
-            <button
-              key={pageNum}
-              onClick={() => handlePageChange(pageNum)}
-              className={`px-3 py-1 text-sm border rounded ${
-                pageNum === pagination.page
-                  ? 'bg-indigo-600 text-white border-indigo-600'
-                  : 'border-gray-300 hover:bg-gray-50'
-              }`}
-            >
-              {pageNum}
-            </button>
-          ))}
-          
-          <button
-            onClick={() => handlePageChange(pagination.page + 1)}
-            disabled={pagination.page === pagination.totalPages}
-            className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            Next
-          </button>
-          <button
-            onClick={() => handlePageChange(pagination.totalPages)}
-            disabled={pagination.page === pagination.totalPages}
-            className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            Last
-          </button>
-        </div>
-      </div>
-    );
-  };
+  // Check if any filters are active
+  const hasActiveFilters = Object.values(filters).some(value => value && value.trim());
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
@@ -411,7 +243,7 @@ const StudentManagementSystem = () => {
             <Users className="w-8 h-8" />
             <h1 className="text-3xl font-bold">Student Management System</h1>
           </div>
-          <p className="text-indigo-100 text-lg">Server-side filtering with real-time React integration</p>
+          <p className="text-indigo-100 text-lg">Manage and filter students with server-side API filtering</p>
         </div>
 
         {/* API Configuration */}
@@ -460,9 +292,11 @@ const StudentManagementSystem = () => {
         <div className="bg-white rounded-xl p-6 mb-8 shadow-lg border border-gray-100">
           <div className="flex items-center gap-2 mb-6">
             <Search className="w-5 h-5 text-indigo-600" />
-            <h2 className="text-xl font-bold text-gray-800">Server-Side Filters</h2>
-            {loading && (
-              <div className="w-4 h-4 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin ml-2" />
+            <h2 className="text-xl font-bold text-gray-800">Filter Students</h2>
+            {hasActiveFilters && (
+              <span className="bg-indigo-100 text-indigo-800 px-2 py-1 rounded-full text-xs font-semibold">
+                Filters Active
+              </span>
             )}
           </div>
           
@@ -488,7 +322,7 @@ const StudentManagementSystem = () => {
               />
             </div>
             <div>
-              <label className="block text-sm font-semibrel text-gray-700 mb-2">Email</label>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">Email</label>
               <input
                 type="text"
                 value={filters.email}
@@ -514,7 +348,7 @@ const StudentManagementSystem = () => {
           
           <div className="flex flex-wrap gap-3">
             <button
-              onClick={loadStudents}
+              onClick={handleRefresh}
               disabled={loading}
               className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 hover:shadow-lg"
             >
@@ -523,7 +357,8 @@ const StudentManagementSystem = () => {
             </button>
             <button
               onClick={clearFilters}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all duration-200 hover:shadow-lg"
+              disabled={!hasActiveFilters}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 hover:shadow-lg"
             >
               <X className="w-4 h-4" />
               Clear Filters
@@ -537,9 +372,14 @@ const StudentManagementSystem = () => {
             <div className="flex items-center gap-2">
               <Users className="w-5 h-5 text-green-600" />
               <h2 className="text-xl font-bold text-gray-800">Students List</h2>
+              {hasActiveFilters && (
+                <span className="bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full text-xs font-semibold">
+                  Filtered Results
+                </span>
+              )}
             </div>
             <div className="bg-green-600 text-white px-3 py-1 rounded-full text-sm font-semibold">
-              {totalCount} total students
+              {students.length} {hasActiveFilters ? 'filtered ' : ''}students
             </div>
           </div>
 
@@ -547,7 +387,9 @@ const StudentManagementSystem = () => {
           {loading && (
             <div className="flex items-center justify-center py-12">
               <div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mr-3"></div>
-              <span className="text-gray-600 text-lg">Loading students...</span>
+              <span className="text-gray-600 text-lg">
+                {hasActiveFilters ? 'Searching students...' : 'Loading students...'}
+              </span>
             </div>
           )}
 
@@ -555,56 +397,58 @@ const StudentManagementSystem = () => {
           {!loading && students.length === 0 && (
             <div className="text-center py-12">
               <Users className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-              <h3 className="text-xl font-semibold text-gray-600 mb-2">No Students Found</h3>
-              <p className="text-gray-500">Try adjusting your filters or add some students to get started.</p>
+              <h3 className="text-xl font-semibold text-gray-600 mb-2">
+                {hasActiveFilters ? 'No Students Match Your Filters' : 'No Students Found'}
+              </h3>
+              <p className="text-gray-500">
+                {hasActiveFilters 
+                  ? 'Try adjusting your search criteria or clear the filters to see all students.'
+                  : 'Try adjusting your filters or add some students to get started.'
+                }
+              </p>
             </div>
           )}
 
           {/* Student Table */}
           {!loading && students.length > 0 && (
-            <>
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead className="bg-gray-50 border-b border-gray-200">
-                    <tr>
-                      <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700 uppercase tracking-wider">ID</th>
-                      <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700 uppercase tracking-wider">First Name</th>
-                      <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700 uppercase tracking-wider">Last Name</th>
-                      <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700 uppercase tracking-wider">Email</th>
-                      <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700 uppercase tracking-wider">Status</th>
-                      <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700 uppercase tracking-wider">Enrollment Date</th>
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gray-50 border-b border-gray-200">
+                  <tr>
+                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700 uppercase tracking-wider">ID</th>
+                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700 uppercase tracking-wider">First Name</th>
+                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700 uppercase tracking-wider">Last Name</th>
+                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700 uppercase tracking-wider">Email</th>
+                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700 uppercase tracking-wider">Status</th>
+                    <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700 uppercase tracking-wider">Enrollment Date</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {students.map((student, index) => (
+                    <tr key={student.id || index} className="hover:bg-gray-50 transition-colors">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                        {student.id || 'N/A'}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {student.firstName || 'N/A'}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {student.lastName || 'N/A'}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {student.email || 'N/A'}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <StatusBadge status={student.status} />
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {formatDate(student.enrollmentDate || student.createdAt)}
+                      </td>
                     </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-200">
-                    {students.map((student, index) => (
-                      <tr key={student.id || index} className="hover:bg-gray-50 transition-colors">
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                          {student.id || 'N/A'}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {student.firstName || 'N/A'}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {student.lastName || 'N/A'}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {student.email || 'N/A'}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <StatusBadge status={student.status} />
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {formatDate(student.enrollmentDate || student.createdAt)}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              
-              {/* Pagination */}
-              <Pagination />
-            </>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </div>
       </div>
