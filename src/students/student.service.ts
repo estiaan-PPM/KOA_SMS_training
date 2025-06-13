@@ -1,55 +1,63 @@
-import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
+// import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import {CreateStudentDto} from './dto/create-student.dto';
-import {Student} from './student.interface';
+// import {Student} from './student.interface';
 import {UpdateStudentDto} from './dto/update-student.dto';
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { DrizzleService } from '../database/drizzle.service';
+import { databaseSchema } from '../database/database-schema';
+import { eq } from 'drizzle-orm';
 
 @Injectable()
 export default class StudentsService {
+    constructor(private readonly drizzleService: DrizzleService) {}
 
-    private lastStudentId = 0;
-    private students: Student[] = [];
+    getAll() {
+    return this.drizzleService.db.select().from(databaseSchema.students);
+  }
 
-    getAllStudents() {
-        return this.students;
+    async getById(id: number) {
+    const students = await this.drizzleService.db
+      .select()
+      .from(databaseSchema.students)
+      .where(eq(databaseSchema.students.id, id));
+    const student = students.pop();
+    if (!student) {
+      throw new NotFoundException();
     }
+    return student;
+  }
 
-    getStudentById(id: number) {
-        const student = this.students.find(student => student.id === id);
-        if(student) {
-            return student;
-        }
-        throw new HttpException('Student not found', HttpStatus.NOT_FOUND);
-    }
+  async create(student: CreateStudentDto) {
+    const createdStudents = await this.drizzleService.db
+      .insert(databaseSchema.students)
+      .values(student)
+      .returning();
+ 
+    return createdStudents.pop();
+  }
 
-    replaceStudent(id: number, student: UpdateStudentDto) {
-        const studentIndex = this.students.findIndex(student => student.id === id);
-        if (studentIndex > -1) {
-            this.students[studentIndex] = { 
-                ...this.students[studentIndex], 
-                ...student,
-                id // This ensures ID from URL parameter is always used
-            };
-            return this.students[studentIndex];
-        }
-        throw new HttpException('student not found', HttpStatus.NOT_FOUND);
+  async update(id: number, student: UpdateStudentDto) {
+    const updatedStudents = await this.drizzleService.db
+      .update(databaseSchema.students)
+      .set(student)
+      .where(eq(databaseSchema.students.id, id))
+      .returning();
+ 
+    if (updatedStudents.length === 0) {
+      throw new NotFoundException();
     }
-    
-    createStudent(student: CreateStudentDto) {
-        const newStudent = {
-        id: ++this.lastStudentId,
-        ...student
-        };
-        this.students.push(newStudent);
+ 
+    return updatedStudents.pop();
+  }
 
-        return newStudent;
+  async delete(id: number) {
+    const deletedStudents = await this.drizzleService.db
+      .delete(databaseSchema.students)
+      .where(eq(databaseSchema.students.id, id))
+      .returning();
+ 
+    if (deletedStudents.length === 0) {
+      throw new NotFoundException();
     }
-    
-    deleteStudent(id: number) {
-        const studentIndex = this.students.findIndex(student => student.id === id);
-        if (studentIndex > -1) {
-        this.students.splice(studentIndex, 1);
-        } else {
-        throw new HttpException('student not found', HttpStatus.NOT_FOUND);
-        }
-    }
+  }
 }

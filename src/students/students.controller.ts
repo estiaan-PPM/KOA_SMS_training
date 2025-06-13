@@ -1,7 +1,19 @@
-import { Body, Controller, Delete, Get, Param, Post, Put } from '@nestjs/common';
+
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  ParseIntPipe,
+  Patch,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
 import StudentsService from './student.service';
 import {CreateStudentDto} from './dto/create-student.dto';
 import {UpdateStudentDto} from './dto/update-Student.dto';
+import JwtAuthenticationGuard from 'src/authentication/jwt-authentication.guard';
  
 @Controller('students')
 export default class StudentsController {
@@ -10,27 +22,31 @@ export default class StudentsController {
   ) {}
  
   @Get()
-  getAllStudents() {
-    return this.studentsService.getAllStudents();
+  getAll() {
+    return this.studentsService.getAll();
   }
  
   @Get(':id')
-  getStudentById(@Param('id') id: string) {
-    return this.studentsService.getStudentById(Number(id));
+  getById(@Param('id', ParseIntPipe) id: number) {
+    return this.studentsService.getById(id);
   }
  
   @Post()
-  async createStudent(@Body() Student: CreateStudentDto) {
-    return this.studentsService.createStudent(Student);
+  @UseGuards(JwtAuthenticationGuard)
+  create(@Body() student: CreateStudentDto) {
+    return this.studentsService.create(student);
   }
  
-  @Put(':id')
-  async replaceStudent(@Param('id') id: string, @Body() Student: UpdateStudentDto) {
-    return this.studentsService.replaceStudent(Number(id), Student);
+  @Patch(':id')
+  update(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() student: UpdateStudentDto,
+  ) {
+    return this.studentsService.update(id, student);
   }
  
   @Delete(':id')
-  async deleteStudent(@Param('id') id: string) {
-    this.studentsService.deleteStudent(Number(id));
+  async delete(@Param('id', ParseIntPipe) id: number) {
+    await this.studentsService.delete(id);
   }
 }
