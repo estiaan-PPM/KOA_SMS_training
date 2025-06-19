@@ -13,7 +13,7 @@ import {
 import StudentsService from './student.service';
 import {CreateStudentDto} from './dto/create-student.dto';
 import {UpdateStudentDto} from './dto/update-Student.dto';
-import JwtAuthenticationGuard from 'src/authentication/jwt-authentication.guard';
+import JwtAuthenticationGuard from '../authentication/jwt-authentication.guard';
  
 @Controller('students')
 export default class StudentsController {

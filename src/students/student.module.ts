@@ -6,5 +6,6 @@ import StudentsService from './student.service';
     imports: [],
     controllers: [StudentController],
     providers: [StudentsService],
+    exports: [StudentsService]
 })
 export class StudentsModule {}

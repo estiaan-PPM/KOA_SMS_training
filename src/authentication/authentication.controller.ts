@@ -6,6 +6,7 @@ import RequestWithUser from './requestWithUser.interface';
 import { LocalAuthenticationGuard } from './localAuthentication.guard';
 import JwtAuthenticationGuard from './jwt-authentication.guard';
 import { Response } from 'express';
+import LogInDto from './dto/logIn.dto';
  
 @Controller('authentication')
 export class AuthenticationController {
@@ -36,11 +37,14 @@ export class AuthenticationController {
   @HttpCode(200)
   @UseGuards(LocalAuthenticationGuard)
   @Post('log-in')
-  async logIn(@Req() request: RequestWithUser, @Res() response: Response) {
-    const user = request.user;
+  async logIn(
+    @Body() logInData: LogInDto,
+    @Res({ passthrough: true }) response: Response,
+  ) {
+    const user =
+      await this.authenticationService.getAuthenticatedUser(logInData);
     const cookie = this.authenticationService.getCookieWithJwtToken(user.id);
     response.setHeader('Set-Cookie', cookie);
-    user.password = undefined;
     return user;
   }
 }

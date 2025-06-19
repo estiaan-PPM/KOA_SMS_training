@@ -3,6 +3,9 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { DatabaseModule } from './database/database.module';
 import * as Joi from 'joi';
 import { AuthenticationModule } from './authentication/authentication.module';
+import { StudentsModule } from './students/student.module';
+import { UsersModule } from './users/users.module';
+import { HealthController } from './health/health.controller';
 
  
 @Module({
@@ -28,11 +31,14 @@ import { AuthenticationModule } from './authentication/authentication.module';
         user: configService.get('POSTGRES_USER'),
         password: configService.get('POSTGRES_PASSWORD'),
         database: configService.get('POSTGRES_DB'),
+        ssl: configService.get('POSTGRES_SSL') === 'true', // This will be false for local dev
       }),
     }),
+    StudentsModule,
     AuthenticationModule,
+    UsersModule,
   ],
-  controllers: [],
+  controllers: [HealthController],
   providers: [],
 })
 export class AppModule {}

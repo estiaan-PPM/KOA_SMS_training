@@ -38,7 +38,7 @@ export default class StudentsService {
 
   async update(id: number, student: UpdateStudentDto) {
     const updatedStudents = await this.drizzleService.db
-      .update(databaseSchema.students)
+      .update(databaseSchema.students) 
       .set(student)
       .where(eq(databaseSchema.students.id, id))
       .returning();

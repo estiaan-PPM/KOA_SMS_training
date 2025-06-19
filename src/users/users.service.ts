@@ -7,7 +7,9 @@ import { UserDto } from './dto/user.dto';
 import { DrizzleService } from '../database/drizzle.service';
 import { databaseSchema } from '../database/database-schema';
 import { eq } from 'drizzle-orm';
-// import  PostgresErrorCode  from '../database/postgresErrorCodes.enum';
+import PostgresErrorCode from '../database/postgresErrorCodes.enum';
+import { isDatabaseError } from '../database/database-error';
+import { UserAlreadyExistsException } from './user-already-exists.exception';
 
 @Injectable()
 export class UsersService {
@@ -50,6 +52,10 @@ export class UsersService {
 
       return createdUsers.pop();
     } catch (error) {
+      if(isDatabaseError(error) && error.code === PostgresErrorCode.UniqueViolation) {
+        throw new UserAlreadyExistsException(user.email);
+      }
+
       throw error;
     }
   }
